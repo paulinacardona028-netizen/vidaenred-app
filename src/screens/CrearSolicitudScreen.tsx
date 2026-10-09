@@ -11,6 +11,7 @@ import {
 import { useApp } from "../context/AppContext";
 import { NivelUrgencia, TIPOS_SANGRE, TipoSangre } from "../types/models";
 import { colors } from "../styles/colors";
+import { ApiError } from "../services/api";
 
 const NIVELES_URGENCIA: NivelUrgencia[] = ["Alta", "Moderada", "Programada"];
 
@@ -19,18 +20,27 @@ export function CrearSolicitudScreen() {
   const [tipoSangre, setTipoSangre] = useState<TipoSangre>("O+");
   const [hospital, setHospital] = useState("");
   const [urgencia, setUrgencia] = useState<NivelUrgencia>("Alta");
+  const [publicando, setPublicando] = useState(false);
 
-  function handlePublicar() {
+  async function handlePublicar() {
     // Validacion de campos obligatorios (regla de negocio del proyecto)
     if (!hospital.trim()) {
       Alert.alert("Falta información", "Escribe el nombre del hospital.");
       return;
     }
 
-    crearSolicitud({ tipoSangre, hospital: hospital.trim(), urgencia });
-    Alert.alert("Solicitud publicada", "Se notificará a donantes compatibles cercanos.");
-    setHospital("");
-    setUrgencia("Alta");
+    setPublicando(true);
+    try {
+      await crearSolicitud({ tipoSangre, hospital: hospital.trim(), urgencia });
+      Alert.alert("Solicitud publicada", "Se notificará a donantes compatibles cercanos.");
+      setHospital("");
+      setUrgencia("Alta");
+    } catch (err) {
+      const mensaje = err instanceof ApiError ? err.message : "No se pudo publicar la solicitud.";
+      Alert.alert("Error", mensaje);
+    } finally {
+      setPublicando(false);
+    }
   }
 
   return (
@@ -86,8 +96,14 @@ export function CrearSolicitudScreen() {
         ))}
       </View>
 
-      <TouchableOpacity style={styles.boton} onPress={handlePublicar}>
-        <Text style={styles.botonTexto}>Publicar solicitud</Text>
+      <TouchableOpacity
+        style={[styles.boton, publicando && { opacity: 0.6 }]}
+        onPress={handlePublicar}
+        disabled={publicando}
+      >
+        <Text style={styles.botonTexto}>
+          {publicando ? "Publicando..." : "Publicar solicitud"}
+        </Text>
       </TouchableOpacity>
     </ScrollView>
   );

@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useFocusEffect } from "@react-navigation/native";
 import { HomeStackParamList } from "../types/navigation";
 import { useApp } from "../context/AppContext";
 import { SolicitudSangre } from "../types/models";
@@ -10,7 +11,14 @@ import { colors } from "../styles/colors";
 type Props = NativeStackScreenProps<HomeStackParamList, "Inicio">;
 
 export function InicioScreen({ navigation }: Props) {
-  const { solicitudesCompatibles, donante } = useApp();
+  const { solicitudesCompatibles, donante, refrescarSolicitudes } = useApp();
+
+  // Recarga las solicitudes cada vez que el usuario vuelve a esta pantalla
+  useFocusEffect(
+    useCallback(() => {
+      refrescarSolicitudes().catch(() => {});
+    }, [refrescarSolicitudes])
+  );
 
   function renderItem({ item }: { item: SolicitudSangre }) {
     const esUrgente = item.urgencia === "Alta";
@@ -34,7 +42,7 @@ export function InicioScreen({ navigation }: Props) {
           )}
         </View>
         <Text style={styles.hospital}>
-          {item.hospital} · {item.distanciaKm} km
+          {item.hospital}{item.distanciaKm !== null ? ` · ${item.distanciaKm} km` : ""}
         </Text>
         <Text style={styles.tiempo}>{item.creadaHace}</Text>
       </TouchableOpacity>
@@ -47,7 +55,7 @@ export function InicioScreen({ navigation }: Props) {
         <View>
           <Text style={styles.headerTitle}>Solicitudes cerca</Text>
           <Text style={styles.headerSubtitle}>
-            Compatibles con tu tipo {donante.tipoSangre}
+            Compatibles con tu tipo {donante?.tipoSangre ?? ""}
           </Text>
         </View>
         <Ionicons name="notifications-outline" size={24} color={colors.text} />

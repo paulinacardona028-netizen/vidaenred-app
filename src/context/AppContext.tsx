@@ -1,32 +1,27 @@
-import React, { createContext, useContext, useState, ReactNode } from "react";
-import { donanteMock, solicitudesMock } from "../services/mockData";
-import {
-  COMPATIBILIDAD_DONANTE,
-  Donante,
-  NivelUrgencia,
-  SolicitudSangre,
-  TipoSangre,
-} from "../types/models";
+import React, { createContext, useCallback, useContext, useState, ReactNode } from "react";
+import { api, DatosRegistro, setToken } from "../services/api";
+import { Donante, NivelUrgencia, SolicitudSangre, TipoSangre } from "../types/models";
 
 interface AppContextType {
   // sesion
   estaLogueado: boolean;
-  iniciarSesion: (correo: string) => void;
+  iniciarSesion: (correo: string, contrasena: string) => Promise<void>;
+  registrarse: (datos: DatosRegistro) => Promise<void>;
   cerrarSesion: () => void;
 
-  // donante
-  donante: Donante;
-  cambiarDisponibilidad: (disponible: boolean) => void;
+  // donante (null mientras no hay sesion)
+  donante: Donante | null;
+  cambiarDisponibilidad: (disponible: boolean) => Promise<void>;
 
-  // solicitudes
-  solicitudes: SolicitudSangre[];
+  // solicitudes compatibles con el tipo del donante
   solicitudesCompatibles: SolicitudSangre[];
+  refrescarSolicitudes: () => Promise<void>;
   crearSolicitud: (datos: {
     tipoSangre: TipoSangre;
     hospital: string;
     urgencia: NivelUrgencia;
-  }) => void;
-  confirmarDonacion: (solicitudId: string) => void;
+  }) => Promise<void>;
+  confirmarDonacion: (solicitudId: string) => Promise<void>;
   obtenerSolicitudPorId: (id: string) => SolicitudSangre | undefined;
 }
 
@@ -34,61 +29,55 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [estaLogueado, setEstaLogueado] = useState(false);
-  const [donante, setDonante] = useState<Donante>(donanteMock);
-  const [solicitudes, setSolicitudes] =
-    useState<SolicitudSangre[]>(solicitudesMock);
+  const [donante, setDonante] = useState<Donante | null>(null);
+  const [solicitudes, setSolicitudes] = useState<SolicitudSangre[]>([]);
 
-  function iniciarSesion(correo: string) {
-    // Login simulado: no valida contra un backend, solo simula la sesion
-    setDonante((prev) => ({ ...prev, correo }));
+  const refrescarSolicitudes = useCallback(async () => {
+    const lista = await api.listarCompatibles();
+    setSolicitudes(lista);
+  }, []);
+
+  async function iniciarSesion(correo: string, contrasena: string) {
+    const { token, donante: perfil } = await api.login(correo, contrasena);
+    setToken(token);
+    setDonante(perfil);
     setEstaLogueado(true);
+    await refrescarSolicitudes();
+  }
+
+  async function registrarse(datos: DatosRegistro) {
+    const { token, donante: perfil } = await api.registrar(datos);
+    setToken(token);
+    setDonante(perfil);
+    setEstaLogueado(true);
+    await refrescarSolicitudes();
   }
 
   function cerrarSesion() {
+    setToken(null);
+    setDonante(null);
+    setSolicitudes([]);
     setEstaLogueado(false);
   }
 
-  function cambiarDisponibilidad(disponible: boolean) {
-    setDonante((prev) => ({ ...prev, disponible }));
+  async function cambiarDisponibilidad(disponible: boolean) {
+    const actualizado = await api.cambiarDisponibilidad(disponible);
+    setDonante(actualizado);
   }
 
-  // Regla de negocio: el donante solo ve solicitudes de tipos de sangre
-  // compatibles con el suyo (no todas)
-  const tiposCompatibles = COMPATIBILIDAD_DONANTE[donante.tipoSangre];
-  const solicitudesCompatibles = solicitudes.filter(
-    (s) => s.estado === "activa" && tiposCompatibles.includes(s.tipoSangre)
-  );
-
-  function crearSolicitud(datos: {
+  async function crearSolicitud(datos: {
     tipoSangre: TipoSangre;
     hospital: string;
     urgencia: NivelUrgencia;
   }) {
-    const nuevaSolicitud: SolicitudSangre = {
-      id: Date.now().toString(),
-      tipoSangre: datos.tipoSangre,
-      hospital: datos.hospital,
-      ciudad: donante.ciudad,
-      distanciaKm: 0,
-      urgencia: datos.urgencia,
-      creadaHace: "ahora",
-      estado: "activa",
-      donantesConfirmados: [],
-    };
-    setSolicitudes((prev) => [nuevaSolicitud, ...prev]);
+    await api.crearSolicitud(datos);
+    // Si la solicitud es compatible con el donante, aparecerá en la lista
+    await refrescarSolicitudes();
   }
 
-  function confirmarDonacion(solicitudId: string) {
-    setSolicitudes((prev) =>
-      prev.map((s) =>
-        s.id === solicitudId && !s.donantesConfirmados.includes(donante.nombre)
-          ? {
-              ...s,
-              donantesConfirmados: [...s.donantesConfirmados, donante.nombre],
-            }
-          : s
-      )
-    );
+  async function confirmarDonacion(solicitudId: string) {
+    const actualizada = await api.confirmarDonacion(solicitudId);
+    setSolicitudes((prev) => prev.map((s) => (s.id === actualizada.id ? actualizada : s)));
   }
 
   function obtenerSolicitudPorId(id: string) {
@@ -100,11 +89,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       value={{
         estaLogueado,
         iniciarSesion,
+        registrarse,
         cerrarSesion,
         donante,
         cambiarDisponibilidad,
-        solicitudes,
-        solicitudesCompatibles,
+        solicitudesCompatibles: solicitudes,
+        refrescarSolicitudes,
         crearSolicitud,
         confirmarDonacion,
         obtenerSolicitudPorId,

@@ -20,15 +20,17 @@ export interface SolicitudSangre {
   tipoSangre: TipoSangre;
   hospital: string;
   ciudad: string;
-  distanciaKm: number;
+  distanciaKm: number | null; // null cuando no se conoce la distancia
   urgencia: NivelUrgencia;
-  creadaHace: string; // texto simple tipo "hace 12 min" (mock)
+  creadaHace: string; // texto calculado por el servidor, ej. "hace 12 min"
   estado: "activa" | "resuelta";
   donantesConfirmados: string[]; // nombres de donantes que confirmaron
+  yaConfirmo: boolean; // si el donante logueado ya confirmó esta solicitud
 }
 
 // Perfil del donante (usuario logueado)
 export interface Donante {
+  id: string;
   nombre: string;
   correo: string;
   tipoSangre: TipoSangre;
@@ -36,16 +38,3 @@ export interface Donante {
   disponible: boolean;
   donacionesRealizadas: number;
 }
-
-// Compatibilidad simple donante -> puede donar a estos tipos
-// (regla de compatibilidad de banco de sangre, simplificada para el proyecto)
-export const COMPATIBILIDAD_DONANTE: Record<TipoSangre, TipoSangre[]> = {
-  "O-": ["O-", "O+", "A-", "A+", "B-", "B+", "AB-", "AB+"], // donante universal
-  "O+": ["O+", "A+", "B+", "AB+"],
-  "A-": ["A-", "A+", "AB-", "AB+"],
-  "A+": ["A+", "AB+"],
-  "B-": ["B-", "B+", "AB-", "AB+"],
-  "B+": ["B+", "AB+"],
-  "AB-": ["AB-", "AB+"],
-  "AB+": ["AB+"],
-};

@@ -4,12 +4,13 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { HomeStackParamList } from "../types/navigation";
 import { useApp } from "../context/AppContext";
 import { colors } from "../styles/colors";
+import { ApiError } from "../services/api";
 
 type Props = NativeStackScreenProps<HomeStackParamList, "DetalleSolicitud">;
 
 export function DetalleSolicitudScreen({ route, navigation }: Props) {
   const { solicitudId } = route.params;
-  const { obtenerSolicitudPorId, confirmarDonacion, donante } = useApp();
+  const { obtenerSolicitudPorId, confirmarDonacion } = useApp();
   const solicitud = obtenerSolicitudPorId(solicitudId);
 
   if (solicitud === undefined) {
@@ -21,15 +22,20 @@ export function DetalleSolicitudScreen({ route, navigation }: Props) {
   }
 
   const solicitudActual = solicitud;
-  const yaConfirmo = solicitudActual.donantesConfirmados.includes(donante.nombre);
+  const yaConfirmo = solicitudActual.yaConfirmo;
   const esUrgente = solicitudActual.urgencia === "Alta";
 
-  function handlePuedoDonar() {
-    confirmarDonacion(solicitudActual.id);
-    Alert.alert(
-      "¡Gracias!",
-      "Se notificó al solicitante que puedes donar. Te contactarán pronto."
-    );
+  async function handlePuedoDonar() {
+    try {
+      await confirmarDonacion(solicitudActual.id);
+      Alert.alert(
+        "¡Gracias!",
+        "Se notificó al solicitante que puedes donar. Te contactarán pronto."
+      );
+    } catch (err) {
+      const mensaje = err instanceof ApiError ? err.message : "No se pudo confirmar.";
+      Alert.alert("No se pudo confirmar", mensaje);
+    }
   }
 
   return (
@@ -66,7 +72,9 @@ export function DetalleSolicitudScreen({ route, navigation }: Props) {
         onPress={() =>
           Alert.alert(
             "Ubicación",
-            `${solicitudActual.hospital}, ${solicitudActual.ciudad} (${solicitudActual.distanciaKm} km)`
+            `${solicitudActual.hospital}, ${solicitudActual.ciudad}${
+              solicitudActual.distanciaKm !== null ? ` (${solicitudActual.distanciaKm} km)` : ""
+            }`
           )
         }
       >

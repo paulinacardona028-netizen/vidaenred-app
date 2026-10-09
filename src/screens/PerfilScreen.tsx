@@ -15,6 +15,8 @@ type Props = CompositeScreenProps<
 export function PerfilScreen({ navigation }: Props) {
   const { donante, cambiarDisponibilidad, cerrarSesion } = useApp();
 
+  if (donante === null) return null;
+
   function handleCerrarSesion() {
     cerrarSesion();
     navigation.getParent()?.reset({
