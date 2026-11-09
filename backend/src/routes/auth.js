@@ -31,10 +31,10 @@ router.post("/registro", async (req, res) => {
 
   try {
     const { rows } = await query(
-      `INSERT INTO donantes (nombre, correo, contrasena_hash, tipo_sangre, ciudad)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO donantes (nombre, correo, contrasena_hash, tipo_sangre, ciudad, es_donante, es_solicitante)
+       VALUES ($1, $2, $3, $4, $5, FALSE, TRUE)
        RETURNING *`,
-      [datos.nombre, datos.correo, hash, datos.tipoSangre, datos.ciudad]
+      [datos.nombre, datos.correo, hash, datos.tipoSangre ?? null, datos.ciudad]
     );
     const donante = rows[0];
     res.status(201).json({ token: generarToken(donante.id), donante: serializarDonante(donante) });

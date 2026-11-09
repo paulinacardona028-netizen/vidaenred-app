@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { query } from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
+import { requireRol } from "../middleware/roles.js";
 import {
   esUUID,
   serializarSolicitud,
@@ -11,43 +12,46 @@ import {
 const router = Router();
 router.use(requireAuth);
 
-// Consulta base: trae la solicitud con los nombres de los donantes que confirmaron.
-// $1 siempre es el id del donante que consulta (sirve para saber si ya confirmó).
+// Consulta base. $1 siempre es el id del donante que consulta.
+// Incluye la ubicación de la entidad para que la app pueda abrir el mapa.
 const SQL_SOLICITUDES = `
   SELECT s.id, s.tipo_sangre, s.hospital, s.ciudad, s.distancia_km,
-         s.urgencia, s.estado, s.creada_en,
+         s.urgencia, s.estado, s.creada_en, s.entidad_id,
+         e.latitud, e.longitud,
          COALESCE(
            array_agg(d.nombre ORDER BY dc.confirmado_en) FILTER (WHERE d.id IS NOT NULL),
            '{}'
          ) AS donantes_confirmados,
          COALESCE(bool_or(d.id = $1), false) AS ya_confirmo
   FROM solicitudes s
+  LEFT JOIN entidades e ON e.id = s.entidad_id
   LEFT JOIN donaciones_confirmadas dc ON dc.solicitud_id = s.id
   LEFT JOIN donantes d ON d.id = dc.donante_id
 `;
 
 async function obtenerSolicitudSerializada(solicitudId, donanteId) {
   const { rows } = await query(
-    `${SQL_SOLICITUDES} WHERE s.id = $2 GROUP BY s.id`,
+    `${SQL_SOLICITUDES} WHERE s.id = $2 GROUP BY s.id, e.id`,
     [donanteId, solicitudId]
   );
   return rows[0] ? serializarSolicitud(rows[0]) : null;
 }
 
-// GET /api/solicitudes/compatibles
-// Solo solicitudes activas de tipos que el donante puede donar
-router.get("/compatibles", async (req, res) => {
+// GET /api/solicitudes/compatibles  (requiere rol donante, solo disponibles)
+router.get("/compatibles", requireRol("donante"), async (req, res) => {
   const { rows: donantes } = await query(
-    "SELECT tipo_sangre FROM donantes WHERE id = $1",
+    "SELECT tipo_sangre, disponible FROM donantes WHERE id = $1",
     [req.donanteId]
   );
-  if (donantes.length === 0) return res.status(404).json({ error: "Donante no encontrado." });
+  const donante = donantes[0];
+  if (!donante) return res.status(404).json({ error: "Donante no encontrado." });
+  if (!donante.disponible) return res.json([]);
 
-  const tipos = tiposCompatiblesCon(donantes[0].tipo_sangre);
+  const tipos = tiposCompatiblesCon(donante.tipo_sangre);
   const { rows } = await query(
     `${SQL_SOLICITUDES}
      WHERE s.estado = 'activa' AND s.tipo_sangre = ANY($2)
-     GROUP BY s.id
+     GROUP BY s.id, e.id
      ORDER BY s.creada_en DESC`,
     [req.donanteId, tipos]
   );
@@ -57,43 +61,66 @@ router.get("/compatibles", async (req, res) => {
 // GET /api/solicitudes/:id
 router.get("/:id", async (req, res) => {
   if (!esUUID(req.params.id)) return res.status(404).json({ error: "Solicitud no encontrada." });
-
   const solicitud = await obtenerSolicitudSerializada(req.params.id, req.donanteId);
   if (!solicitud) return res.status(404).json({ error: "Solicitud no encontrada." });
   res.json(solicitud);
 });
 
-// POST /api/solicitudes
-// body: { tipoSangre, hospital, urgencia }. La ciudad se toma del perfil del donante.
-router.post("/", async (req, res) => {
+// POST /api/solicitudes  (requiere rol solicitante)
+// body: { tipoSangre, urgencia, entidadId? | hospital, pacienteNombre?, contactoTelefono? }
+// Si se envía entidadId, el hospital y la ciudad se toman del catálogo.
+router.post("/", requireRol("solicitante"), async (req, res) => {
   const datos = {
     tipoSangre: req.body.tipoSangre,
     hospital: req.body.hospital?.trim(),
     urgencia: req.body.urgencia,
+    entidadId: req.body.entidadId,
   };
+
+  if (datos.entidadId !== undefined && !esUUID(datos.entidadId)) {
+    return res.status(400).json({ error: "La entidad no es válida." });
+  }
 
   const errores = validarSolicitud(datos);
   if (errores.length > 0) return res.status(400).json({ error: errores.join(" ") });
+
+  let entidad = null;
+  if (datos.entidadId) {
+    const { rows } = await query("SELECT * FROM entidades WHERE id = $1", [datos.entidadId]);
+    entidad = rows[0];
+    if (!entidad) return res.status(404).json({ error: "La entidad no existe." });
+  }
 
   const { rows: donantes } = await query("SELECT ciudad FROM donantes WHERE id = $1", [
     req.donanteId,
   ]);
   if (donantes.length === 0) return res.status(404).json({ error: "Donante no encontrado." });
 
+  const hospital = entidad ? entidad.nombre : datos.hospital;
+  const ciudad = entidad ? entidad.ciudad : donantes[0].ciudad;
+
   const { rows } = await query(
-    `INSERT INTO solicitudes (solicitante_id, tipo_sangre, hospital, ciudad, urgencia)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO solicitudes
+       (solicitante_id, tipo_sangre, hospital, ciudad, urgencia, entidad_id, paciente_nombre, contacto_telefono)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING id`,
-    [req.donanteId, datos.tipoSangre, datos.hospital, donantes[0].ciudad, datos.urgencia]
+    [
+      req.donanteId,
+      datos.tipoSangre,
+      hospital,
+      ciudad,
+      datos.urgencia,
+      entidad ? entidad.id : null,
+      req.body.pacienteNombre?.trim() || null,
+      req.body.contactoTelefono?.trim() || null,
+    ]
   );
 
-  const solicitud = await obtenerSolicitudSerializada(rows[0].id, req.donanteId);
-  res.status(201).json(solicitud);
+  res.status(201).json(await obtenerSolicitudSerializada(rows[0].id, req.donanteId));
 });
 
-// POST /api/solicitudes/:id/donaciones
-// El donante confirma que puede donar. Valida compatibilidad y que no lo haya hecho antes.
-router.post("/:id/donaciones", async (req, res) => {
+// POST /api/solicitudes/:id/donaciones  (requiere rol donante)
+router.post("/:id/donaciones", requireRol("donante"), async (req, res) => {
   if (!esUUID(req.params.id)) return res.status(404).json({ error: "Solicitud no encontrada." });
 
   const { rows: solicitudes } = await query(
@@ -109,8 +136,6 @@ router.post("/:id/donaciones", async (req, res) => {
   const { rows: donantes } = await query("SELECT tipo_sangre FROM donantes WHERE id = $1", [
     req.donanteId,
   ]);
-  if (donantes.length === 0) return res.status(404).json({ error: "Donante no encontrado." });
-
   if (!tiposCompatiblesCon(donantes[0].tipo_sangre).includes(solicitud.tipo_sangre)) {
     return res.status(403).json({ error: "Tu tipo de sangre no es compatible con esta solicitud." });
   }

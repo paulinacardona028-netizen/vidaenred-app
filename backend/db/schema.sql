@@ -38,3 +38,37 @@ CREATE TABLE IF NOT EXISTS donaciones_confirmadas (
   confirmado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (solicitud_id, donante_id)
 );
+
+-- ── Roles de cuenta: una persona puede ser donante, solicitante o ambos ──
+ALTER TABLE donantes ADD COLUMN IF NOT EXISTS es_donante BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE donantes ALTER COLUMN es_donante SET DEFAULT FALSE;
+ALTER TABLE donantes ADD COLUMN IF NOT EXISTS es_solicitante BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE donantes ALTER COLUMN tipo_sangre DROP NOT NULL;
+
+-- ── Entidades aliadas o del directorio (hospitales, urgencias, bancos de sangre, clínicas) ──
+CREATE TABLE IF NOT EXISTS entidades (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  nombre     TEXT NOT NULL,
+  tipo       TEXT NOT NULL CHECK (tipo IN ('Hospital','Urgencias','Banco de sangre','Clínica')),
+  ciudad     TEXT NOT NULL,
+  telefono   TEXT,
+  latitud    NUMERIC(9,6),
+  longitud   NUMERIC(9,6),
+  es_aliada  BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+-- ── Historial de evaluaciones del formulario de requisitos ──
+CREATE TABLE IF NOT EXISTS evaluaciones_elegibilidad (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  donante_id    UUID NOT NULL REFERENCES donantes(id) ON DELETE CASCADE,
+  respuestas    JSONB NOT NULL,
+  cumple        BOOLEAN NOT NULL,
+  motivos       JSONB NOT NULL DEFAULT '[]',
+  reintentar_en DATE,
+  creada_en     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ── Solicitudes: enlace a entidad, datos del paciente y contacto privado ──
+ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS entidad_id UUID REFERENCES entidades(id) ON DELETE SET NULL;
+ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS paciente_nombre TEXT;
+ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS contacto_telefono TEXT;
