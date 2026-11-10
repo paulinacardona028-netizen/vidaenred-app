@@ -2,6 +2,7 @@
 export type RootStackParamList = {
   Login: undefined;
   MainTabs: undefined;
+  Requisitos: undefined;
 };
 
 // Pestanas principales (bottom tabs) que ve el usuario ya logueado

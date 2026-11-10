@@ -1,6 +1,13 @@
 import React, { createContext, useCallback, useContext, useState, ReactNode } from "react";
-import { api, DatosRegistro, setToken } from "../services/api";
-import { Donante, NivelUrgencia, SolicitudSangre, TipoSangre } from "../types/models";
+import { api, ApiError, DatosRegistro, setToken } from "../services/api";
+import {
+  Donante,
+  NivelUrgencia,
+  RespuestasEvaluacion,
+  ResultadoEvaluacion,
+  SolicitudSangre,
+  TipoSangre,
+} from "../types/models";
 
 interface AppContextType {
   // sesion
@@ -12,6 +19,8 @@ interface AppContextType {
   // donante (null mientras no hay sesion)
   donante: Donante | null;
   cambiarDisponibilidad: (disponible: boolean) => Promise<void>;
+  cambiarRoles: (cambios: { esDonante?: boolean; esSolicitante?: boolean }) => Promise<void>;
+  evaluarRequisitos: (respuestas: RespuestasEvaluacion) => Promise<ResultadoEvaluacion>;
 
   // solicitudes compatibles con el tipo del donante
   solicitudesCompatibles: SolicitudSangre[];
@@ -33,8 +42,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [solicitudes, setSolicitudes] = useState<SolicitudSangre[]>([]);
 
   const refrescarSolicitudes = useCallback(async () => {
-    const lista = await api.listarCompatibles();
-    setSolicitudes(lista);
+    try {
+      setSolicitudes(await api.listarCompatibles());
+    } catch (err) {
+      // Un solicitante que no es donante recibe 403: simplemente no hay lista que mostrar
+      if (err instanceof ApiError && err.status === 403) {
+        setSolicitudes([]);
+        return;
+      }
+      throw err;
+    }
   }, []);
 
   async function iniciarSesion(correo: string, contrasena: string) {
@@ -65,6 +82,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setDonante(actualizado);
   }
 
+  async function cambiarRoles(cambios: { esDonante?: boolean; esSolicitante?: boolean }) {
+    const actualizado = await api.cambiarRoles(cambios);
+    setDonante(actualizado);
+    await refrescarSolicitudes();
+  }
+
+  async function evaluarRequisitos(respuestas: RespuestasEvaluacion) {
+    const resultado = await api.evaluarRequisitos(respuestas);
+    setDonante(resultado.donante);
+    if (resultado.cumple) await refrescarSolicitudes();
+    return resultado;
+  }
+
   async function crearSolicitud(datos: {
     tipoSangre: TipoSangre;
     hospital: string;
@@ -93,6 +123,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         cerrarSesion,
         donante,
         cambiarDisponibilidad,
+        cambiarRoles,
+        evaluarRequisitos,
         solicitudesCompatibles: solicitudes,
         refrescarSolicitudes,
         crearSolicitud,

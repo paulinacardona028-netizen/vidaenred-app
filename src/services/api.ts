@@ -1,4 +1,11 @@
-import { Donante, NivelUrgencia, SolicitudSangre, TipoSangre } from "../types/models";
+import {
+  Donante,
+  NivelUrgencia,
+  RespuestasEvaluacion,
+  ResultadoEvaluacion,
+  SolicitudSangre,
+  TipoSangre,
+} from "../types/models";
 
 // En el celular o emulador, "localhost" apunta al propio dispositivo.
 // Define EXPO_PUBLIC_API_URL con la IP de tu computador, ej. http://192.168.1.20:3000/api
@@ -74,6 +81,12 @@ export const api = {
 
   cambiarDisponibilidad: (disponible: boolean) =>
     peticion<Donante>("/donante/disponibilidad", { method: "PATCH", body: { disponible } }),
+
+  cambiarRoles: (cambios: { esDonante?: boolean; esSolicitante?: boolean }) =>
+    peticion<Donante>("/donante/roles", { method: "PATCH", body: cambios }),
+
+  evaluarRequisitos: (respuestas: RespuestasEvaluacion) =>
+    peticion<ResultadoEvaluacion>("/donante/evaluacion", { method: "POST", body: respuestas }),
 
   listarCompatibles: () => peticion<SolicitudSangre[]>("/solicitudes/compatibles"),
 
