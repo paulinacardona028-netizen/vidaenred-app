@@ -1,19 +1,14 @@
 import { Router } from "express";
-import { query } from "../db.js";
+import { pool, query } from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireRol } from "../middleware/roles.js";
-import {
-  esUUID,
-  serializarSolicitud,
-  tiposCompatiblesCon,
-  validarSolicitud,
-} from "../lib/reglas.js";
+import { esUUID, serializarSolicitud, tiposCompatiblesCon, validarSolicitud } from "../lib/reglas.js";
+import { notificar, notificarDonantesCompatibles } from "../lib/notificaciones.js";
 
 const router = Router();
 router.use(requireAuth);
 
 // Consulta base. $1 siempre es el id del donante que consulta.
-// Incluye la ubicación de la entidad para que la app pueda abrir el mapa.
 const SQL_SOLICITUDES = `
   SELECT s.id, s.tipo_sangre, s.hospital, s.ciudad, s.distancia_km,
          s.urgencia, s.estado, s.creada_en, s.entidad_id,
@@ -22,7 +17,12 @@ const SQL_SOLICITUDES = `
            array_agg(d.nombre ORDER BY dc.confirmado_en) FILTER (WHERE d.id IS NOT NULL),
            '{}'
          ) AS donantes_confirmados,
-         COALESCE(bool_or(d.id = $1), false) AS ya_confirmo
+         COALESCE(
+           array_agg(d.id ORDER BY dc.confirmado_en) FILTER (WHERE d.id IS NOT NULL),
+           '{}'
+         ) AS donantes_ids,
+         COALESCE(bool_or(d.id = $1), false) AS ya_confirmo,
+         (s.solicitante_id = $1) AS es_mia
   FROM solicitudes s
   LEFT JOIN entidades e ON e.id = s.entidad_id
   LEFT JOIN donaciones_confirmadas dc ON dc.solicitud_id = s.id
@@ -37,14 +37,12 @@ async function obtenerSolicitudSerializada(solicitudId, donanteId) {
   return rows[0] ? serializarSolicitud(rows[0]) : null;
 }
 
-// GET /api/solicitudes/compatibles  (requiere rol donante, solo disponibles)
+// GET /api/solicitudes/compatibles  (rol donante, solo si está disponible)
 router.get("/compatibles", requireRol("donante"), async (req, res) => {
-  const { rows: donantes } = await query(
-    "SELECT tipo_sangre, disponible FROM donantes WHERE id = $1",
-    [req.donanteId]
-  );
+  const { rows: donantes } = await query("SELECT tipo_sangre, disponible FROM donantes WHERE id = $1", [
+    req.donanteId,
+  ]);
   const donante = donantes[0];
-  if (!donante) return res.status(404).json({ error: "Donante no encontrado." });
   if (!donante.disponible) return res.json([]);
 
   const tipos = tiposCompatiblesCon(donante.tipo_sangre);
@@ -58,6 +56,18 @@ router.get("/compatibles", requireRol("donante"), async (req, res) => {
   res.json(rows.map(serializarSolicitud));
 });
 
+// GET /api/solicitudes/mias  (rol solicitante)
+router.get("/mias", requireRol("solicitante"), async (req, res) => {
+  const { rows } = await query(
+    `${SQL_SOLICITUDES}
+     WHERE s.solicitante_id = $2
+     GROUP BY s.id, e.id
+     ORDER BY s.creada_en DESC`,
+    [req.donanteId, req.donanteId]
+  );
+  res.json(rows.map(serializarSolicitud));
+});
+
 // GET /api/solicitudes/:id
 router.get("/:id", async (req, res) => {
   if (!esUUID(req.params.id)) return res.status(404).json({ error: "Solicitud no encontrada." });
@@ -66,9 +76,8 @@ router.get("/:id", async (req, res) => {
   res.json(solicitud);
 });
 
-// POST /api/solicitudes  (requiere rol solicitante)
+// POST /api/solicitudes  (rol solicitante)
 // body: { tipoSangre, urgencia, entidadId? | hospital, pacienteNombre?, contactoTelefono? }
-// Si se envía entidadId, el hospital y la ciudad se toman del catálogo.
 router.post("/", requireRol("solicitante"), async (req, res) => {
   const datos = {
     tipoSangre: req.body.tipoSangre,
@@ -80,7 +89,6 @@ router.post("/", requireRol("solicitante"), async (req, res) => {
   if (datos.entidadId !== undefined && !esUUID(datos.entidadId)) {
     return res.status(400).json({ error: "La entidad no es válida." });
   }
-
   const errores = validarSolicitud(datos);
   if (errores.length > 0) return res.status(400).json({ error: errores.join(" ") });
 
@@ -91,11 +99,7 @@ router.post("/", requireRol("solicitante"), async (req, res) => {
     if (!entidad) return res.status(404).json({ error: "La entidad no existe." });
   }
 
-  const { rows: donantes } = await query("SELECT ciudad FROM donantes WHERE id = $1", [
-    req.donanteId,
-  ]);
-  if (donantes.length === 0) return res.status(404).json({ error: "Donante no encontrado." });
-
+  const { rows: donantes } = await query("SELECT ciudad FROM donantes WHERE id = $1", [req.donanteId]);
   const hospital = entidad ? entidad.nombre : datos.hospital;
   const ciudad = entidad ? entidad.ciudad : donantes[0].ciudad;
 
@@ -103,7 +107,7 @@ router.post("/", requireRol("solicitante"), async (req, res) => {
     `INSERT INTO solicitudes
        (solicitante_id, tipo_sangre, hospital, ciudad, urgencia, entidad_id, paciente_nombre, contacto_telefono)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-     RETURNING id`,
+     RETURNING id, solicitante_id, tipo_sangre, urgencia`,
     [
       req.donanteId,
       datos.tipoSangre,
@@ -116,15 +120,16 @@ router.post("/", requireRol("solicitante"), async (req, res) => {
     ]
   );
 
+  await notificarDonantesCompatibles(rows[0], hospital);
   res.status(201).json(await obtenerSolicitudSerializada(rows[0].id, req.donanteId));
 });
 
-// POST /api/solicitudes/:id/donaciones  (requiere rol donante)
+// POST /api/solicitudes/:id/donaciones  (rol donante)
 router.post("/:id/donaciones", requireRol("donante"), async (req, res) => {
   if (!esUUID(req.params.id)) return res.status(404).json({ error: "Solicitud no encontrada." });
 
   const { rows: solicitudes } = await query(
-    "SELECT id, tipo_sangre, estado FROM solicitudes WHERE id = $1",
+    "SELECT id, solicitante_id, hospital, tipo_sangre, estado FROM solicitudes WHERE id = $1",
     [req.params.id]
   );
   const solicitud = solicitudes[0];
@@ -133,7 +138,7 @@ router.post("/:id/donaciones", requireRol("donante"), async (req, res) => {
     return res.status(409).json({ error: "Esta solicitud ya no está activa." });
   }
 
-  const { rows: donantes } = await query("SELECT tipo_sangre FROM donantes WHERE id = $1", [
+  const { rows: donantes } = await query("SELECT nombre, tipo_sangre FROM donantes WHERE id = $1", [
     req.donanteId,
   ]);
   if (!tiposCompatiblesCon(donantes[0].tipo_sangre).includes(solicitud.tipo_sangre)) {
@@ -148,6 +153,75 @@ router.post("/:id/donaciones", requireRol("donante"), async (req, res) => {
   );
   if (insercion.rowCount === 0) {
     return res.status(409).json({ error: "Ya confirmaste que puedes donar para esta solicitud." });
+  }
+
+  await notificar(
+    solicitud.solicitante_id,
+    "donacion_confirmada",
+    `${donantes[0].nombre} confirmó que puede donar para tu solicitud en ${solicitud.hospital}.`,
+    solicitud.id
+  );
+  res.json(await obtenerSolicitudSerializada(solicitud.id, req.donanteId));
+});
+
+// POST /api/solicitudes/:id/resolver  (solo el solicitante dueño)
+// body: { donantesIds: [uuid] }  donantes que efectivamente donaron.
+// Suma la donación al historial de cada uno y cierra la solicitud.
+router.post("/:id/resolver", requireRol("solicitante"), async (req, res) => {
+  if (!esUUID(req.params.id)) return res.status(404).json({ error: "Solicitud no encontrada." });
+
+  const donantesIds = Array.isArray(req.body.donantesIds) ? req.body.donantesIds : [];
+  if (!donantesIds.every(esUUID)) {
+    return res.status(400).json({ error: "La lista de donantes no es válida." });
+  }
+
+  const { rows } = await query(
+    "SELECT id, solicitante_id, hospital, estado FROM solicitudes WHERE id = $1",
+    [req.params.id]
+  );
+  const solicitud = rows[0];
+  if (!solicitud) return res.status(404).json({ error: "Solicitud no encontrada." });
+  if (solicitud.solicitante_id !== req.donanteId) {
+    return res.status(403).json({ error: "Solo quien publicó la solicitud puede cerrarla." });
+  }
+  if (solicitud.estado !== "activa") {
+    return res.status(409).json({ error: "Esta solicitud ya está cerrada." });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      "UPDATE solicitudes SET estado = 'resuelta', resuelta_en = now() WHERE id = $1",
+      [solicitud.id]
+    );
+    for (const donanteId of donantesIds) {
+      // Solo cuentan los donantes que realmente confirmaron para esta solicitud
+      const { rowCount } = await client.query(
+        `INSERT INTO donaciones_completadas (solicitud_id, donante_id)
+         SELECT $1, $2 FROM donaciones_confirmadas
+         WHERE solicitud_id = $1 AND donante_id = $2
+         ON CONFLICT DO NOTHING`,
+        [solicitud.id, donanteId]
+      );
+      if (rowCount > 0) {
+        await client.query(
+          "UPDATE donantes SET donaciones_realizadas = donaciones_realizadas + 1 WHERE id = $1",
+          [donanteId]
+        );
+        await client.query(
+          `INSERT INTO notificaciones (donante_id, tipo, mensaje, solicitud_id)
+           VALUES ($1, 'donacion_registrada', $2, $3)`,
+          [donanteId, `Tu donación en ${solicitud.hospital} quedó registrada. ¡Gracias!`, solicitud.id]
+        );
+      }
+    }
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
   }
 
   res.json(await obtenerSolicitudSerializada(solicitud.id, req.donanteId));

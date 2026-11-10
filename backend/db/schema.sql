@@ -72,3 +72,35 @@ CREATE TABLE IF NOT EXISTS evaluaciones_elegibilidad (
 ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS entidad_id UUID REFERENCES entidades(id) ON DELETE SET NULL;
 ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS paciente_nombre TEXT;
 ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS contacto_telefono TEXT;
+
+-- ── Cierre de solicitudes y donaciones completadas (historial) ──
+ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS resuelta_en TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS donaciones_completadas (
+  solicitud_id  UUID NOT NULL REFERENCES solicitudes(id) ON DELETE CASCADE,
+  donante_id    UUID NOT NULL REFERENCES donantes(id) ON DELETE CASCADE,
+  completada_en TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (solicitud_id, donante_id)
+);
+
+-- ── Notificaciones dentro de la app ──
+CREATE TABLE IF NOT EXISTS notificaciones (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  donante_id   UUID NOT NULL REFERENCES donantes(id) ON DELETE CASCADE,
+  tipo         TEXT NOT NULL,
+  mensaje      TEXT NOT NULL,
+  solicitud_id UUID REFERENCES solicitudes(id) ON DELETE CASCADE,
+  leida        BOOLEAN NOT NULL DEFAULT FALSE,
+  creada_en    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_notificaciones_donante ON notificaciones (donante_id, creada_en DESC);
+
+-- ── Recuperación de contraseña (código de un solo uso) ──
+CREATE TABLE IF NOT EXISTS recuperaciones_contrasena (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  donante_id  UUID NOT NULL REFERENCES donantes(id) ON DELETE CASCADE,
+  codigo_hash TEXT NOT NULL,
+  expira_en   TIMESTAMPTZ NOT NULL,
+  usada       BOOLEAN NOT NULL DEFAULT FALSE,
+  creada_en   TIMESTAMPTZ NOT NULL DEFAULT now()
+);

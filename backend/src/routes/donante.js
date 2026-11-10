@@ -36,8 +36,6 @@ router.patch("/disponibilidad", requireRol("donante"), async (req, res) => {
 });
 
 // PATCH /api/donante/roles  body: { esSolicitante?: boolean, esDonante?: boolean }
-// Puede desactivar el rol de donante en cualquier momento, pero para ACTIVARLO
-// debe pasar por el formulario de requisitos (POST /evaluacion).
 router.patch("/roles", async (req, res) => {
   const { esSolicitante, esDonante } = req.body;
   if (esSolicitante !== undefined && typeof esSolicitante !== "boolean") {
@@ -68,12 +66,7 @@ router.patch("/roles", async (req, res) => {
   res.json(serializarDonante(rows[0]));
 });
 
-// POST /api/donante/evaluacion
-// body: { tipoSangre, fechaNacimiento, pesoKg, sexo, fechaUltimaDonacion?,
-//         embarazoOLactancia?, tatuajeOPiercingReciente?, antibioticosRecientes?,
-//         fiebreHoy?, condiciones: { vih, hepatitisBC, cancer, cardiaca,
-//         diabetesInsulina, drogasInyectadas } }
-// Si cumple: activa el rol de donante. Si no: la cuenta queda solo como solicitante.
+// POST /api/donante/evaluacion  (ver reglas en reglas.js)
 router.post("/evaluacion", async (req, res) => {
   const respuestas = req.body ?? {};
   const errores = validarRespuestasElegibilidad(respuestas);
@@ -110,6 +103,55 @@ router.post("/evaluacion", async (req, res) => {
     reintentarEn: resultado.reintentarEn,
     donante: serializarDonante(rows[0]),
   });
+});
+
+// GET /api/donante/historial  donaciones completadas
+router.get("/historial", async (req, res) => {
+  const { rows } = await query(
+    `SELECT dc.solicitud_id, dc.completada_en, s.hospital, s.tipo_sangre, s.urgencia
+     FROM donaciones_completadas dc
+     JOIN solicitudes s ON s.id = dc.solicitud_id
+     WHERE dc.donante_id = $1
+     ORDER BY dc.completada_en DESC`,
+    [req.donanteId]
+  );
+  res.json(
+    rows.map((r) => ({
+      solicitudId: r.solicitud_id,
+      hospital: r.hospital,
+      tipoSangre: r.tipo_sangre,
+      urgencia: r.urgencia,
+      completadaEn: r.completada_en,
+    }))
+  );
+});
+
+// GET /api/donante/notificaciones
+router.get("/notificaciones", async (req, res) => {
+  const { rows } = await query(
+    `SELECT id, tipo, mensaje, solicitud_id, leida, creada_en
+     FROM notificaciones
+     WHERE donante_id = $1
+     ORDER BY creada_en DESC
+     LIMIT 50`,
+    [req.donanteId]
+  );
+  res.json(
+    rows.map((n) => ({
+      id: n.id,
+      tipo: n.tipo,
+      mensaje: n.mensaje,
+      solicitudId: n.solicitud_id,
+      leida: n.leida,
+      creadaEn: n.creada_en,
+    }))
+  );
+});
+
+// POST /api/donante/notificaciones/leer  marca todas como leídas
+router.post("/notificaciones/leer", async (req, res) => {
+  await query("UPDATE notificaciones SET leida = TRUE WHERE donante_id = $1", [req.donanteId]);
+  res.json({ ok: true });
 });
 
 export default router;

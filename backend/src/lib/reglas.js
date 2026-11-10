@@ -206,7 +206,9 @@ export function serializarSolicitud(fila) {
     latitud: fila.latitud === null || fila.latitud === undefined ? null : Number(fila.latitud),
     longitud: fila.longitud === null || fila.longitud === undefined ? null : Number(fila.longitud),
     donantesConfirmados: fila.donantes_confirmados ?? [],
+    donantesIds: fila.donantes_ids ?? [],
     yaConfirmo: Boolean(fila.ya_confirmo),
+    esMia: Boolean(fila.es_mia),
   };
 }
 

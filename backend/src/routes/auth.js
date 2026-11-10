@@ -1,6 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { createHash, randomInt } from "node:crypto";
 import { query } from "../db.js";
 import { serializarDonante, validarRegistro } from "../lib/reglas.js";
 
@@ -11,6 +12,8 @@ function generarToken(donanteId) {
     expiresIn: process.env.JWT_EXPIRA ?? "7d",
   });
 }
+
+const hashCodigo = (codigo) => createHash("sha256").update(codigo).digest("hex");
 
 // POST /api/auth/registro
 router.post("/registro", async (req, res) => {
@@ -54,14 +57,65 @@ router.post("/login", async (req, res) => {
   const { rows } = await query("SELECT * FROM donantes WHERE correo = $1", [correo ?? ""]);
   const donante = rows[0];
 
-  // Mismo mensaje si el correo no existe o la contraseña no coincide,
-  // para no revelar qué correos están registrados.
+  // Mismo mensaje si el correo no existe o la contraseña no coincide
   const coincide = donante && (await bcrypt.compare(contrasena, donante.contrasena_hash));
   if (!coincide) {
     return res.status(401).json({ error: "Correo o contraseña incorrectos." });
   }
 
   res.json({ token: generarToken(donante.id), donante: serializarDonante(donante) });
+});
+
+// POST /api/auth/recuperar  body: { correo }
+// Siempre responde igual, exista o no el correo, para no revelar cuentas.
+// PENDIENTE: el envío por correo electrónico. Mientras tanto, en desarrollo el código
+// se muestra en la consola del servidor.
+router.post("/recuperar", async (req, res) => {
+  const correo = req.body.correo?.trim().toLowerCase();
+  const mensaje = "Si el correo está registrado, recibirás un código para restablecer tu contraseña.";
+
+  const { rows } = await query("SELECT id FROM donantes WHERE correo = $1", [correo ?? ""]);
+  if (rows[0]) {
+    const codigo = String(randomInt(100000, 1000000));
+    await query(
+      `INSERT INTO recuperaciones_contrasena (donante_id, codigo_hash, expira_en)
+       VALUES ($1, $2, now() + interval '30 minutes')`,
+      [rows[0].id, hashCodigo(codigo)]
+    );
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`[DEV] Código de recuperación para ${correo}: ${codigo}`);
+    }
+  }
+  res.json({ mensaje });
+});
+
+// POST /api/auth/restablecer  body: { correo, codigo, contrasena }
+router.post("/restablecer", async (req, res) => {
+  const correo = req.body.correo?.trim().toLowerCase();
+  const codigo = String(req.body.codigo ?? "").trim();
+  const contrasena = req.body.contrasena ?? "";
+
+  if (contrasena.length < 6) {
+    return res.status(400).json({ error: "La contraseña debe tener al menos 6 caracteres." });
+  }
+
+  const { rows } = await query(
+    `SELECT r.id, r.donante_id
+     FROM recuperaciones_contrasena r
+     JOIN donantes d ON d.id = r.donante_id
+     WHERE d.correo = $1 AND r.codigo_hash = $2 AND r.usada = FALSE AND r.expira_en > now()`,
+    [correo ?? "", hashCodigo(codigo)]
+  );
+  if (rows.length === 0) {
+    return res.status(400).json({ error: "El código no es válido o ya venció." });
+  }
+
+  const hash = await bcrypt.hash(contrasena, 10);
+  await query("UPDATE donantes SET contrasena_hash = $1 WHERE id = $2", [hash, rows[0].donante_id]);
+  await query("UPDATE recuperaciones_contrasena SET usada = TRUE WHERE donante_id = $1", [
+    rows[0].donante_id,
+  ]);
+  res.json({ mensaje: "Tu contraseña fue actualizada. Ya puedes iniciar sesión." });
 });
 
 export default router;
