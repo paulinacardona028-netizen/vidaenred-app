@@ -1,9 +1,13 @@
 import {
   Donante,
+  DonacionHistorial,
+  Entidad,
+  Notificacion,
   NivelUrgencia,
   RespuestasEvaluacion,
   ResultadoEvaluacion,
   SolicitudSangre,
+  TipoEntidad,
   TipoSangre,
 } from "../types/models";
 
@@ -58,8 +62,16 @@ export interface DatosRegistro {
   nombre: string;
   correo: string;
   contrasena: string;
-  tipoSangre: TipoSangre;
   ciudad: string;
+  tipoSangre?: TipoSangre; // opcional: se completa al activar el rol de donante
+}
+
+export interface DatosNuevaSolicitud {
+  tipoSangre: TipoSangre;
+  urgencia: NivelUrgencia;
+  entidadId: string;
+  pacienteNombre?: string;
+  contactoTelefono?: string;
 }
 
 interface RespuestaSesion {
@@ -68,13 +80,20 @@ interface RespuestaSesion {
 }
 
 export const api = {
+  // ── Sesión y cuenta ──
   registrar: (datos: DatosRegistro) =>
     peticion<RespuestaSesion>("/auth/registro", { method: "POST", body: datos }),
 
   login: (correo: string, contrasena: string) =>
-    peticion<RespuestaSesion>("/auth/login", {
+    peticion<RespuestaSesion>("/auth/login", { method: "POST", body: { correo, contrasena } }),
+
+  recuperarContrasena: (correo: string) =>
+    peticion<{ mensaje: string }>("/auth/recuperar", { method: "POST", body: { correo } }),
+
+  restablecerContrasena: (correo: string, codigo: string, contrasena: string) =>
+    peticion<{ mensaje: string }>("/auth/restablecer", {
       method: "POST",
-      body: { correo, contrasena },
+      body: { correo, codigo, contrasena },
     }),
 
   obtenerDonante: () => peticion<Donante>("/donante"),
@@ -88,13 +107,33 @@ export const api = {
   evaluarRequisitos: (respuestas: RespuestasEvaluacion) =>
     peticion<ResultadoEvaluacion>("/donante/evaluacion", { method: "POST", body: respuestas }),
 
+  historial: () => peticion<DonacionHistorial[]>("/donante/historial"),
+
+  notificaciones: () => peticion<Notificacion[]>("/donante/notificaciones"),
+
+  marcarNotificacionesLeidas: () =>
+    peticion<{ ok: boolean }>("/donante/notificaciones/leer", { method: "POST" }),
+
+  // ── Catálogo de entidades (público) ──
+  listarEntidades: (tipo?: TipoEntidad) =>
+    peticion<Entidad[]>(`/entidades${tipo ? `?tipo=${encodeURIComponent(tipo)}` : ""}`),
+
+  // ── Solicitudes ──
   listarCompatibles: () => peticion<SolicitudSangre[]>("/solicitudes/compatibles"),
+
+  listarMisSolicitudes: () => peticion<SolicitudSangre[]>("/solicitudes/mias"),
 
   obtenerSolicitud: (id: string) => peticion<SolicitudSangre>(`/solicitudes/${id}`),
 
-  crearSolicitud: (datos: { tipoSangre: TipoSangre; hospital: string; urgencia: NivelUrgencia }) =>
+  crearSolicitud: (datos: DatosNuevaSolicitud) =>
     peticion<SolicitudSangre>("/solicitudes", { method: "POST", body: datos }),
 
   confirmarDonacion: (id: string) =>
     peticion<SolicitudSangre>(`/solicitudes/${id}/donaciones`, { method: "POST" }),
+
+  cerrarSolicitud: (id: string, donantesIds: string[]) =>
+    peticion<SolicitudSangre>(`/solicitudes/${id}/resolver`, {
+      method: "POST",
+      body: { donantesIds },
+    }),
 };

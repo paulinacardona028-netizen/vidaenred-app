@@ -16,7 +16,6 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../types/navigation";
 import { useApp } from "../context/AppContext";
 import { ApiError } from "../services/api";
-import { TIPOS_SANGRE, TipoSangre } from "../types/models";
 import { colors } from "../styles/colors";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Login">;
@@ -28,7 +27,6 @@ export function LoginScreen({ navigation }: Props) {
   const [correo, setCorreo] = useState("");
   const [contrasena, setContrasena] = useState("");
   const [ciudad, setCiudad] = useState("");
-  const [tipoSangre, setTipoSangre] = useState<TipoSangre>("O+");
   const [cargando, setCargando] = useState(false);
 
   const esRegistro = modo === "registro";
@@ -50,7 +48,6 @@ export function LoginScreen({ navigation }: Props) {
           nombre: nombre.trim(),
           correo: correo.trim(),
           contrasena,
-          tipoSangre,
           ciudad: ciudad.trim(),
         });
       } else {
@@ -97,20 +94,6 @@ export function LoginScreen({ navigation }: Props) {
                 onChangeText={setCiudad}
               />
 
-              <Text style={styles.label}>Tipo de sangre</Text>
-              <View style={styles.chipsRow}>
-                {TIPOS_SANGRE.map((tipo) => (
-                  <TouchableOpacity
-                    key={tipo}
-                    style={[styles.chip, tipoSangre === tipo && styles.chipActivo]}
-                    onPress={() => setTipoSangre(tipo)}
-                  >
-                    <Text style={[styles.chipTexto, tipoSangre === tipo && styles.chipTextoActivo]}>
-                      {tipo}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
             </>
           )}
 
@@ -146,6 +129,12 @@ export function LoginScreen({ navigation }: Props) {
               <Text style={styles.buttonText}>{esRegistro ? "Crear cuenta" : "Ingresar"}</Text>
             )}
           </TouchableOpacity>
+
+          {!esRegistro && (
+            <TouchableOpacity onPress={() => navigation.navigate("RecuperarContrasena")}>
+              <Text style={styles.link}>¿Olvidaste tu contraseña?</Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity onPress={() => setModo(esRegistro ? "ingresar" : "registro")}>
             <Text style={styles.link}>

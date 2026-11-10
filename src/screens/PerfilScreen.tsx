@@ -128,6 +128,10 @@ export function PerfilScreen({ navigation }: Props) {
         )}
       </View>
 
+      <TouchableOpacity style={styles.botonHistorial} onPress={() => navigation.navigate("Historial")}>
+        <Text style={styles.botonHistorialTexto}>Mi historial de donaciones</Text>
+      </TouchableOpacity>
+
       <TouchableOpacity style={styles.botonSalir} onPress={handleCerrarSesion}>
         <Text style={styles.botonSalirTexto}>Cerrar sesión</Text>
       </TouchableOpacity>
@@ -168,6 +172,16 @@ const styles = StyleSheet.create({
   textoFila: { flex: 1 },
   filaLabel: { color: colors.textLight, fontSize: 13 },
   filaValor: { color: colors.text, fontSize: 14, fontWeight: "600" },
+  botonHistorial: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: 4,
+  },
+  botonHistorialTexto: { color: colors.text, fontWeight: "600" },
   botonSalir: { marginTop: 12 },
   botonSalirTexto: { color: colors.urgentText, fontWeight: "600" },
 });
