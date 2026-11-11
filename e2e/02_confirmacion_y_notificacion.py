@@ -1,3 +1,9 @@
+import os, sys
+ENTIDAD = os.environ.get("ENTIDAD")          # nombre de una entidad aliada ya importada
+DONANTE_CORREO = os.environ.get("DONANTE_CORREO")  # cuenta de donante compatible con O+
+DONANTE_CLAVE = os.environ.get("DONANTE_CLAVE")
+if not ENTIDAD or not DONANTE_CORREO or not DONANTE_CLAVE:
+    sys.exit("Define ENTIDAD, DONANTE_CORREO y DONANTE_CLAVE con datos reales de tu base de prueba.")
 from playwright.sync_api import sync_playwright, expect
 ANA = open("/tmp/ana.txt").read().strip()
 WEB = "http://localhost:8081"
@@ -20,10 +26,10 @@ with sync_playwright() as p:
     # ── Juan (donante O+) ve la solicitud de Ana y confirma ──
     ctx = browser.new_context(viewport={"width": 390, "height": 844}); page = ctx.new_page(); page.set_default_timeout(15000)
     errores = []; page.on("pageerror", lambda e: errores.append(str(e)))
-    paso("A. Juan inicia sesión", lambda: (login(page, "juan.perez@correo.com", "nueva123"), expect(page.locator("text=Entidades aliadas >> visible=true").first).to_be_visible()), page)
+    paso("A. Juan inicia sesión", lambda: (login(page, DONANTE_CORREO, DONANTE_CLAVE), expect(page.locator("text=Entidades aliadas >> visible=true").first).to_be_visible()), page)
     paso("B. Juan ve la solicitud compatible y abre el detalle", lambda: (
-        expect(page.get_by_text("Hospital San Rafael").first).to_be_visible(),
-        page.get_by_text("O+ alta").first.click(),
+        expect(page.get_by_text(ENTIDAD).first).to_be_visible(),
+        page.get_by_text("O+ alta").first.click()  # solicitud O+ publicada por el solicitante de prueba,
         expect(page.get_by_text("Tipo requerido: O+")).to_be_visible()), page)
     page.screenshot(path="/tmp/shots/08_detalle_donante.png")
     paso("C. 'Puedo donar' muestra la confirmación", lambda: (

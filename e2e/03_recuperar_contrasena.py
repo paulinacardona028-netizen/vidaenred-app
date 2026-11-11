@@ -1,3 +1,9 @@
+import os, sys
+ENTIDAD = os.environ.get("ENTIDAD")          # nombre de una entidad aliada ya importada
+DONANTE_CORREO = os.environ.get("DONANTE_CORREO")  # cuenta de donante compatible con O+
+DONANTE_CLAVE = os.environ.get("DONANTE_CLAVE")
+if not ENTIDAD or not DONANTE_CORREO or not DONANTE_CLAVE:
+    sys.exit("Define ENTIDAD, DONANTE_CORREO y DONANTE_CLAVE con datos reales de tu base de prueba.")
 from playwright.sync_api import sync_playwright, expect
 WEB = "http://localhost:8081"
 res = []
@@ -12,7 +18,7 @@ with sync_playwright() as p:
     paso("1. Login: enlace '¿Olvidaste tu contraseña?' abre recuperación", lambda: (page.get_by_text("¿Olvidaste tu contraseña?").click(), expect(page.get_by_text("Recuperar contraseña").first).to_be_visible()), page)
     page.screenshot(path="/tmp/shots/12_recuperar.png")
     paso("2. Solicitar código avanza al paso de escribir el código", lambda: (
-        page.locator("input[placeholder=\"nombre@correo.com\"] >> visible=true").fill("juan.perez@correo.com"),
+        page.locator("input[placeholder=\"nombre@correo.com\"] >> visible=true").fill(DONANTE_CORREO),
         page.get_by_text("Enviar código", exact=True).click(),
         expect(page.get_by_text("Escribe el código")).to_be_visible()), page)
     page.screenshot(path="/tmp/shots/13_codigo.png")

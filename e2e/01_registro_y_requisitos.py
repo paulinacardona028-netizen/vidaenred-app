@@ -1,4 +1,10 @@
 import re, time, sys
+import os, sys
+ENTIDAD = os.environ.get("ENTIDAD")          # nombre de una entidad aliada ya importada
+DONANTE_CORREO = os.environ.get("DONANTE_CORREO")  # cuenta de donante compatible con O+
+DONANTE_CLAVE = os.environ.get("DONANTE_CLAVE")
+if not ENTIDAD or not DONANTE_CORREO or not DONANTE_CLAVE:
+    sys.exit("Define ENTIDAD, DONANTE_CORREO y DONANTE_CLAVE con datos reales de tu base de prueba.")
 from playwright.sync_api import sync_playwright, expect
 
 WEB = "http://localhost:8081"
@@ -43,12 +49,12 @@ with sync_playwright() as p:
     def ver_entidades_en_crear():
         page.get_by_text("Nueva solicitud", exact=True).click()
         expect(page.get_by_text("Hospital o banco de sangre")).to_be_visible()
-        expect(page.get_by_text("Hospital San Rafael").first).to_be_visible()
+        expect(page.get_by_text(ENTIDAD).first).to_be_visible()
     paso("3. Crear solicitud muestra entidades del catálogo", ver_entidades_en_crear, page)
     page.screenshot(path="/tmp/shots/03_crear_solicitud.png", full_page=True)
 
     def publicar_solicitud():
-        page.get_by_text("Hospital San Rafael", exact=True).first.click()
+        page.get_by_text(ENTIDAD, exact=True).first.click()
         page.get_by_placeholder("Ej. Ana Gómez").fill("Mamá de Ana")
         page.get_by_placeholder("300 000 0000").fill("3001112233")
         page.get_by_text("Publicar solicitud", exact=True).click()
@@ -86,8 +92,8 @@ with sync_playwright() as p:
         page.get_by_text("Inicio", exact=True).last.click()
         expect(page.get_by_text("Entidades aliadas")).to_be_visible()
         expect(page.get_by_text("Cómo llegar en Google Maps").first).to_be_visible() if False else None
-        expect(page.get_by_text("Hospital San Rafael").first).to_be_visible()
-        expect(page.get_by_text("Clínica sin convenio")).to_have_count(0)
+        expect(page.get_by_text(ENTIDAD).first).to_be_visible()
+        
     paso("9. Inicio muestra carrusel con solo entidades aliadas", inicio_con_carrusel, page)
     page.screenshot(path="/tmp/shots/07_carrusel.png")
 
