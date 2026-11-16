@@ -44,3 +44,11 @@ Errores: `400` datos inválidos, `401` sin sesión o credenciales incorrectas, `
 - Un donante solo ve y confirma solicitudes de tipos de sangre compatibles (tabla `COMPATIBILIDAD_DONANTE` en `src/lib/reglas.js`).
 - La contraseña se guarda cifrada con bcrypt; nunca se devuelve en las respuestas.
 - Una misma persona no puede confirmar dos veces la misma solicitud.
+
+## Despliegue en producción
+
+Ver la sección de despliegue del `README.md` de la raíz. Resumen:
+
+- `Dockerfile` en esta carpeta; el contenedor ejecuta `npm run start:produccion`, que aplica el esquema y luego inicia la API.
+- Variables obligatorias: `DATABASE_URL`, `JWT_SECRET`. Recomendadas: `NODE_ENV=production`, `CORS_ORIGIN`.
+- Verificación: `GET /api/health` debe responder `{"ok":true}`.

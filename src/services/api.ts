@@ -15,6 +15,11 @@ import {
 // Define EXPO_PUBLIC_API_URL con la IP de tu computador, ej. http://192.168.1.20:3000/api
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000/api";
 
+// Una versión de producción nunca debe apuntar a localhost por omisión
+if (!__DEV__ && !process.env.EXPO_PUBLIC_API_URL) {
+  throw new Error("Falta EXPO_PUBLIC_API_URL: define la dirección de la API en eas.json.");
+}
+
 let token: string | null = null;
 
 export function setToken(nuevoToken: string | null) {

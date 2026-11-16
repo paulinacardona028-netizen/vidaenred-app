@@ -1,4 +1,5 @@
-import React, { createContext, useCallback, useContext, useState, ReactNode } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState, ReactNode } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api, ApiError, DatosNuevaSolicitud, DatosRegistro, setToken } from "../services/api";
 import {
   Donante,
@@ -12,6 +13,7 @@ export type Modo = "donar" | "solicitar";
 interface AppContextType {
   // sesión
   estaLogueado: boolean;
+  cargandoSesion: boolean; // true mientras se restaura la sesión guardada al abrir la app
   iniciarSesion: (correo: string, contrasena: string) => Promise<void>;
   registrarse: (datos: DatosRegistro) => Promise<void>;
   cerrarSesion: () => void;
@@ -43,6 +45,9 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// Clave donde se guarda el token para que la sesión sobreviva a cerrar la app
+const CLAVE_TOKEN = "vidaenred.token";
+
 // Algunas listas responden 403 si la cuenta no tiene el rol. Eso significa "lista vacía".
 async function listaTolerante<T>(pedir: () => Promise<T[]>): Promise<T[]> {
   try {
@@ -55,6 +60,7 @@ async function listaTolerante<T>(pedir: () => Promise<T[]>): Promise<T[]> {
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [estaLogueado, setEstaLogueado] = useState(false);
+  const [cargandoSesion, setCargandoSesion] = useState(true);
   const [donante, setDonante] = useState<Donante | null>(null);
   const [modoElegido, setModoElegido] = useState<Modo | null>(null);
   const [solicitudes, setSolicitudes] = useState<SolicitudSangre[]>([]);
@@ -82,9 +88,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await Promise.all([refrescarSolicitudes(), refrescarMisSolicitudes(), refrescarNoLeidas()]);
   }
 
+  // Al abrir la app: si hay un token guardado y sigue vigente, se restaura la sesión
+  useEffect(() => {
+    let activo = true;
+    (async () => {
+      try {
+        const tokenGuardado = await AsyncStorage.getItem(CLAVE_TOKEN);
+        if (!tokenGuardado) return;
+        setToken(tokenGuardado);
+        const perfil = await api.obtenerDonante();
+        if (!activo) return;
+        setDonante(perfil);
+        setEstaLogueado(true);
+        await cargarDatosIniciales();
+      } catch {
+        // Token vencido o servidor inaccesible: se pide iniciar sesión otra vez
+        setToken(null);
+        await AsyncStorage.removeItem(CLAVE_TOKEN);
+      } finally {
+        if (activo) setCargandoSesion(false);
+      }
+    })();
+    return () => {
+      activo = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function iniciarSesion(correo: string, contrasena: string) {
     const { token, donante: perfil } = await api.login(correo, contrasena);
     setToken(token);
+    await AsyncStorage.setItem(CLAVE_TOKEN, token);
     setDonante(perfil);
     setModoElegido(null);
     setEstaLogueado(true);
@@ -94,6 +128,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   async function registrarse(datos: DatosRegistro) {
     const { token, donante: perfil } = await api.registrar(datos);
     setToken(token);
+    await AsyncStorage.setItem(CLAVE_TOKEN, token);
     setDonante(perfil);
     setModoElegido(null);
     setEstaLogueado(true);
@@ -102,6 +137,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   function cerrarSesion() {
     setToken(null);
+    AsyncStorage.removeItem(CLAVE_TOKEN);
     setDonante(null);
     setModoElegido(null);
     setSolicitudes([]);
@@ -165,6 +201,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider
       value={{
         estaLogueado,
+        cargandoSesion,
         iniciarSesion,
         registrarse,
         cerrarSesion,
