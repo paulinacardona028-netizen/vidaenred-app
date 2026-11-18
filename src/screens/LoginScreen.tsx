@@ -17,6 +17,8 @@ import { RootStackParamList } from "../types/navigation";
 import { useApp } from "../context/AppContext";
 import { ApiError } from "../services/api";
 import { colors } from "../styles/colors";
+import { SelectorCiudad } from "../components/SelectorCiudad";
+import { SelectorFecha } from "../components/SelectorFecha";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Login">;
 
@@ -27,6 +29,7 @@ export function LoginScreen({ navigation }: Props) {
   const [correo, setCorreo] = useState("");
   const [contrasena, setContrasena] = useState("");
   const [ciudad, setCiudad] = useState("");
+  const [fechaNacimiento, setFechaNacimiento] = useState("");
   const [cargando, setCargando] = useState(false);
 
   const esRegistro = modo === "registro";
@@ -36,8 +39,8 @@ export function LoginScreen({ navigation }: Props) {
       Alert.alert("Faltan datos", "Escribe tu correo y contraseña.");
       return;
     }
-    if (esRegistro && (!nombre.trim() || !ciudad.trim())) {
-      Alert.alert("Faltan datos", "Escribe tu nombre y tu ciudad.");
+    if (esRegistro && (!nombre.trim() || !ciudad || !fechaNacimiento)) {
+      Alert.alert("Faltan datos", "Escribe tu nombre, elige tu ciudad y tu fecha de nacimiento.");
       return;
     }
 
@@ -48,7 +51,8 @@ export function LoginScreen({ navigation }: Props) {
           nombre: nombre.trim(),
           correo: correo.trim(),
           contrasena,
-          ciudad: ciudad.trim(),
+          ciudad,
+          fechaNacimiento,
         });
       } else {
         await iniciarSesion(correo.trim(), contrasena);
@@ -85,14 +89,9 @@ export function LoginScreen({ navigation }: Props) {
                 onChangeText={setNombre}
               />
 
-              <Text style={styles.label}>Ciudad</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Tu ciudad"
-                placeholderTextColor={colors.textLight}
-                value={ciudad}
-                onChangeText={setCiudad}
-              />
+              <SelectorCiudad valor={ciudad} onChange={setCiudad} />
+
+              <SelectorFecha valor={fechaNacimiento} onChange={setFechaNacimiento} />
 
             </>
           )}

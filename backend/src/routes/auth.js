@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { createHash, randomInt } from "node:crypto";
 import { query } from "../db.js";
 import { serializarDonante, validarRegistro } from "../lib/reglas.js";
+import { ciudadCanonica } from "../lib/ciudades.js";
 
 const router = Router();
 
@@ -23,6 +24,7 @@ router.post("/registro", async (req, res) => {
     contrasena: req.body.contrasena,
     tipoSangre: req.body.tipoSangre,
     ciudad: req.body.ciudad?.trim(),
+    fechaNacimiento: req.body.fechaNacimiento,
   };
 
   const errores = validarRegistro(datos);
@@ -34,10 +36,10 @@ router.post("/registro", async (req, res) => {
 
   try {
     const { rows } = await query(
-      `INSERT INTO donantes (nombre, correo, contrasena_hash, tipo_sangre, ciudad, es_donante, es_solicitante)
-       VALUES ($1, $2, $3, $4, $5, FALSE, TRUE)
+      `INSERT INTO donantes (nombre, correo, contrasena_hash, tipo_sangre, ciudad, fecha_nacimiento, es_donante, es_solicitante)
+       VALUES ($1, $2, $3, $4, $5, $6, FALSE, TRUE)
        RETURNING *`,
-      [datos.nombre, datos.correo, hash, datos.tipoSangre ?? null, datos.ciudad]
+      [datos.nombre, datos.correo, hash, datos.tipoSangre ?? null, ciudadCanonica(datos.ciudad), datos.fechaNacimiento]
     );
     const donante = rows[0];
     res.status(201).json({ token: generarToken(donante.id), donante: serializarDonante(donante) });

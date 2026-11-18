@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Dimensions } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Entidad, TipoEntidad } from "../types/models";
 import { api } from "../services/api";
+import { useApp } from "../context/AppContext";
 import { abrirEnGoogleMaps, llamar } from "../utils/mapas";
 import { colors } from "../styles/colors";
 
@@ -23,62 +24,64 @@ const ICONOS: Record<TipoEntidad, keyof typeof Ionicons.glyphMap> = {
   Clínica: "medical-outline",
 };
 
-// Carrusel horizontal de entidades aliadas, con filtro por tipo
+// Carrusel de entidades aliadas de la ciudad del usuario, con filtro por tipo
 export function CarruselEntidades() {
+  const { donante } = useApp();
+  const ciudad = donante?.ciudad ?? "";
   const [filtro, setFiltro] = useState<TipoEntidad | undefined>(undefined);
   const [entidades, setEntidades] = useState<Entidad[]>([]);
+  const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(false);
 
   useEffect(() => {
+    if (!ciudad) return;
     let activo = true;
+    setCargando(true);
     setError(false);
     api
-      .listarEntidades(filtro)
+      .listarEntidades({ tipo: filtro, ciudad })
       .then((lista) => activo && setEntidades(lista))
-      .catch(() => activo && setError(true));
+      .catch(() => activo && setError(true))
+      .finally(() => activo && setCargando(false));
     return () => {
       activo = false;
     };
-  }, [filtro]);
+  }, [filtro, ciudad]);
 
   return (
     <View style={styles.contenedor}>
-      <Text style={styles.titulo}>Entidades aliadas</Text>
+      <Text style={styles.titulo}>Entidades aliadas en {ciudad || "tu ciudad"}</Text>
 
-      <FlatList
-        horizontal
-        data={FILTROS}
-        keyExtractor={(f) => f.texto}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filtros}
-        renderItem={({ item }) => {
-          const activo = item.valor === filtro;
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtros}>
+        {FILTROS.map((f) => {
+          const activo = f.valor === filtro;
           return (
             <TouchableOpacity
+              key={f.texto}
               style={[styles.chip, activo && styles.chipActivo]}
-              onPress={() => setFiltro(item.valor)}
+              onPress={() => setFiltro(f.valor)}
             >
-              <Text style={[styles.chipTexto, activo && styles.chipTextoActivo]}>{item.texto}</Text>
+              <Text style={[styles.chipTexto, activo && styles.chipTextoActivo]}>{f.texto}</Text>
             </TouchableOpacity>
           );
-        }}
-      />
+        })}
+      </ScrollView>
 
-      {error ? (
-        <Text style={styles.vacio}>No se pudieron cargar las entidades.</Text>
+      {cargando ? (
+        <View style={styles.estado}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      ) : error ? (
+        <Text style={styles.vacio}>No se pudieron cargar las entidades. Revisa tu conexión.</Text>
       ) : entidades.length === 0 ? (
-        <Text style={styles.vacio}>No hay entidades de este tipo por ahora.</Text>
+        <Text style={styles.vacio}>
+          Todavía no hay entidades aliadas en {ciudad || "tu ciudad"}
+          {filtro ? ` de tipo ${filtro.toLowerCase()}` : ""}.
+        </Text>
       ) : (
-        <FlatList
-          horizontal
-          data={entidades}
-          keyExtractor={(e) => e.id}
-          showsHorizontalScrollIndicator={false}
-          snapToInterval={ANCHO_TARJETA + 12}
-          decelerationRate="fast"
-          contentContainerStyle={styles.carrusel}
-          renderItem={({ item }) => (
-            <View style={styles.tarjeta}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.carrusel}>
+          {entidades.map((item) => (
+            <View key={item.id} style={styles.tarjeta}>
               <View style={styles.iconoCirculo}>
                 <Ionicons name={ICONOS[item.tipo]} size={22} color={colors.primary} />
               </View>
@@ -96,7 +99,7 @@ export function CarruselEntidades() {
               <View style={styles.acciones}>
                 <TouchableOpacity
                   style={styles.accion}
-                  onPress={() => abrirEnGoogleMaps(item.nombre, item.latitud, item.longitud)}
+                  onPress={() => abrirEnGoogleMaps(item.nombre, item.latitud, item.longitud, item.ciudad)}
                 >
                   <Ionicons name="navigate-outline" size={16} color={colors.white} />
                   <Text style={styles.accionTexto}>Cómo llegar</Text>
@@ -108,8 +111,8 @@ export function CarruselEntidades() {
                 )}
               </View>
             </View>
-          )}
-        />
+          ))}
+        </ScrollView>
       )}
     </View>
   );
@@ -119,17 +122,12 @@ const styles = StyleSheet.create({
   contenedor: { paddingTop: 12, paddingBottom: 8 },
   titulo: { fontSize: 15, fontWeight: "bold", color: colors.text, paddingHorizontal: 16, marginBottom: 8 },
   filtros: { paddingHorizontal: 16, gap: 8 },
-  chip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
+  chip: { borderWidth: 1, borderColor: colors.border, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6, marginRight: 8 },
   chipActivo: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipTexto: { color: colors.text, fontSize: 13 },
   chipTextoActivo: { color: colors.white, fontWeight: "600" },
-  carrusel: { paddingHorizontal: 16, paddingVertical: 12, gap: 12 },
+  estado: { height: 150, alignItems: "center", justifyContent: "center" },
+  carrusel: { paddingHorizontal: 16, paddingVertical: 12 },
   tarjeta: {
     width: ANCHO_TARJETA,
     borderWidth: 1,
@@ -137,6 +135,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 14,
     backgroundColor: colors.background,
+    marginRight: 12,
   },
   iconoCirculo: {
     width: 40,
@@ -149,14 +148,7 @@ const styles = StyleSheet.create({
   },
   nombre: { fontSize: 15, fontWeight: "bold", color: colors.text },
   detalle: { fontSize: 12, color: colors.textLight, marginTop: 2 },
-  badge: {
-    alignSelf: "flex-start",
-    backgroundColor: "#E3F4EA",
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    marginTop: 8,
-  },
+  badge: { alignSelf: "flex-start", backgroundColor: "#E3F4EA", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2, marginTop: 8 },
   badgeTexto: { color: colors.success, fontSize: 11, fontWeight: "600" },
   acciones: { flexDirection: "row", gap: 8, marginTop: 12 },
   accion: {
@@ -170,13 +162,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   accionTexto: { color: colors.white, fontWeight: "600", fontSize: 13 },
-  accionSecundaria: {
-    width: 40,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-  },
+  accionSecundaria: { width: 40, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.border, borderRadius: 8 },
   vacio: { color: colors.textLight, paddingHorizontal: 16, paddingVertical: 12 },
 });

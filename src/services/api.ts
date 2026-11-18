@@ -68,6 +68,7 @@ export interface DatosRegistro {
   correo: string;
   contrasena: string;
   ciudad: string;
+  fechaNacimiento: string; // AAAA-MM-DD
   tipoSangre?: TipoSangre; // opcional: se completa al activar el rol de donante
 }
 
@@ -120,8 +121,15 @@ export const api = {
     peticion<{ ok: boolean }>("/donante/notificaciones/leer", { method: "POST" }),
 
   // ── Catálogo de entidades (público) ──
-  listarEntidades: (tipo?: TipoEntidad) =>
-    peticion<Entidad[]>(`/entidades${tipo ? `?tipo=${encodeURIComponent(tipo)}` : ""}`),
+  listarEntidades: (filtros: { tipo?: TipoEntidad; ciudad?: string } = {}) => {
+    const params: string[] = [];
+    if (filtros.tipo) params.push(`tipo=${encodeURIComponent(filtros.tipo)}`);
+    if (filtros.ciudad) params.push(`ciudad=${encodeURIComponent(filtros.ciudad)}`);
+    return peticion<Entidad[]>(`/entidades${params.length ? `?${params.join("&")}` : ""}`);
+  },
+
+  // ── Ciudades (catálogo público) ──
+  listarCiudades: () => peticion<string[]>("/ciudades"),
 
   // ── Solicitudes ──
   listarCompatibles: () => peticion<SolicitudSangre[]>("/solicitudes/compatibles"),

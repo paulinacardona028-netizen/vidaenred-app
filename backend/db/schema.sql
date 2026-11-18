@@ -104,3 +104,6 @@ CREATE TABLE IF NOT EXISTS recuperaciones_contrasena (
   usada       BOOLEAN NOT NULL DEFAULT FALSE,
   creada_en   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- ── Fecha de nacimiento del usuario (obligatoria al registrarse; nullable para cuentas antiguas) ──
+ALTER TABLE donantes ADD COLUMN IF NOT EXISTS fecha_nacimiento DATE;

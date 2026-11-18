@@ -4,6 +4,7 @@ import authRoutes from "./routes/auth.js";
 import donanteRoutes from "./routes/donante.js";
 import solicitudesRoutes from "./routes/solicitudes.js";
 import entidadesRoutes from "./routes/entidades.js";
+import ciudadesRoutes from "./routes/ciudades.js";
 
 export function crearApp() {
   const app = express();
@@ -17,6 +18,7 @@ export function crearApp() {
   app.use("/api/donante", donanteRoutes);
   app.use("/api/solicitudes", solicitudesRoutes);
   app.use("/api/entidades", entidadesRoutes);
+  app.use("/api/ciudades", ciudadesRoutes);
 
   app.use((req, res) => {
     res.status(404).json({ error: "Ruta no encontrada." });

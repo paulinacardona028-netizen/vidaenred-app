@@ -40,6 +40,7 @@ export interface Donante {
   correo: string;
   tipoSangre: TipoSangre | null; // null si nunca completó el formulario de donante
   ciudad: string;
+  fechaNacimiento: string | null; // AAAA-MM-DD; null en cuentas creadas antes de este campo
   disponible: boolean;
   donacionesRealizadas: number;
   esDonante: boolean;

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { query } from "../db.js";
 import { TIPOS_ENTIDAD, serializarEntidad } from "../lib/reglas.js";
+import { normalizarCiudad } from "../lib/ciudades.js";
 
 // Catálogo público: no requiere sesión, así el carrusel de inicio funciona siempre.
 const router = Router();
@@ -19,6 +20,12 @@ router.get("/", async (req, res) => {
     }
     params.push(req.query.tipo);
     condiciones.push(`tipo = $${params.length}`);
+  }
+
+  // Filtra por ciudad ignorando mayúsculas y tildes
+  if (req.query.ciudad !== undefined && String(req.query.ciudad).trim() !== "") {
+    params.push(normalizarCiudad(req.query.ciudad));
+    condiciones.push(`translate(lower(ciudad), 'áéíóúüñ', 'aeiouun') = $${params.length}`);
   }
 
   const where = condiciones.length > 0 ? `WHERE ${condiciones.join(" AND ")}` : "";

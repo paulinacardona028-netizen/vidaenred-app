@@ -151,7 +151,7 @@ export function DetalleSolicitudScreen({ route, navigation }: Props) {
 
       <TouchableOpacity
         style={styles.botonSecundario}
-        onPress={() => abrirEnGoogleMaps(solicitud.hospital, solicitud.latitud, solicitud.longitud)}
+        onPress={() => abrirEnGoogleMaps(solicitud.hospital, solicitud.latitud, solicitud.longitud, solicitud.ciudad)}
       >
         <Ionicons name="navigate-outline" size={18} color={colors.text} />
         <Text style={styles.botonSecundarioTexto}>Cómo llegar en Google Maps</Text>

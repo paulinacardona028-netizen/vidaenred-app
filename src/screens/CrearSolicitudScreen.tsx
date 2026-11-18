@@ -26,9 +26,14 @@ export function CrearSolicitudScreen({ navigation }: Props) {
   const [contactoTelefono, setContactoTelefono] = useState("");
   const [publicando, setPublicando] = useState(false);
 
+  // Solo se ofrecen entidades aliadas de la ciudad del solicitante
   useEffect(() => {
-    api.listarEntidades().then(setEntidades).catch(() => setEntidades([]));
-  }, []);
+    if (!donante?.ciudad) return;
+    api
+      .listarEntidades({ ciudad: donante.ciudad })
+      .then(setEntidades)
+      .catch(() => setEntidades([]));
+  }, [donante?.ciudad]);
 
   if (donante && !donante.esSolicitante) {
     return (
@@ -72,7 +77,7 @@ export function CrearSolicitudScreen({ navigation }: Props) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.label}>Hospital o banco de sangre</Text>
+      <Text style={styles.label}>Hospital o banco de sangre en {donante?.ciudad}</Text>
       <View style={styles.fila}>
         {entidades.map((e) => (
           <TouchableOpacity
@@ -85,7 +90,7 @@ export function CrearSolicitudScreen({ navigation }: Props) {
         ))}
       </View>
       {entidades.length === 0 && (
-        <Text style={styles.ayuda}>No hay entidades disponibles en este momento.</Text>
+        <Text style={styles.ayuda}>Todavía no hay entidades aliadas en {donante?.ciudad}.</Text>
       )}
 
       <Text style={styles.label}>Tipo de sangre requerido</Text>

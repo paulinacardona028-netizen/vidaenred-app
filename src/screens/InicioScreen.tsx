@@ -55,7 +55,8 @@ export function InicioScreen({ navigation }: Props) {
           ))}
         </View>
       )}
-      {modo === "donar" && <CarruselEntidades />}
+      {/* Las entidades aliadas de la ciudad se muestran en ambos modos */}
+      <CarruselEntidades />
       {modo === "solicitar" && (
         <TouchableOpacity
           style={styles.botonNueva}

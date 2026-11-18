@@ -21,6 +21,7 @@ import {
   TipoSangre,
 } from "../types/models";
 import { colors } from "../styles/colors";
+import { SelectorFecha } from "../components/SelectorFecha";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Requisitos">;
 
@@ -73,6 +74,7 @@ export function RequisitosScreen({ navigation }: Props) {
   const [form, setForm] = useState<Formulario>({
     ...INICIAL,
     tipoSangre: donante?.tipoSangre ?? INICIAL.tipoSangre,
+    fechaNacimiento: donante?.fechaNacimiento ?? "",
   });
   const [enviando, setEnviando] = useState(false);
   const [resultado, setResultado] = useState<ResultadoEvaluacion | null>(null);
@@ -88,7 +90,7 @@ export function RequisitosScreen({ navigation }: Props) {
   async function handleEnviar() {
     const errores: string[] = [];
     const peso = Number(form.pesoKg.replace(",", "."));
-    if (!FECHA_REGEX.test(form.fechaNacimiento)) errores.push("Escribe la fecha de nacimiento como AAAA-MM-DD.");
+    if (!FECHA_REGEX.test(form.fechaNacimiento)) errores.push("Elige tu fecha de nacimiento en el calendario.");
     if (!peso || peso <= 0) errores.push("Escribe un peso válido en kilogramos.");
     if (form.fechaUltimaDonacion && !FECHA_REGEX.test(form.fechaUltimaDonacion)) {
       errores.push("La fecha de la última donación debe tener formato AAAA-MM-DD.");
@@ -184,14 +186,7 @@ export function RequisitosScreen({ navigation }: Props) {
       </View>
 
       <Text style={styles.subtitulo}>Datos personales</Text>
-      <Text style={styles.label}>Fecha de nacimiento (AAAA-MM-DD)</Text>
-      <TextInput
-        style={styles.input}
-        value={form.fechaNacimiento}
-        onChangeText={(v) => cambiar("fechaNacimiento", v)}
-        placeholder="1995-03-10"
-        keyboardType="numbers-and-punctuation"
-      />
+      <SelectorFecha valor={form.fechaNacimiento} onChange={(v) => cambiar("fechaNacimiento", v)} />
       <Text style={styles.label}>Peso (kg)</Text>
       <TextInput
         style={styles.input}

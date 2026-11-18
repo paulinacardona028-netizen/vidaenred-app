@@ -1,3 +1,4 @@
+import { ciudadValida } from "./ciudades.js";
 // Reglas de negocio de VidaEnRed. Viven en el servidor para que la app
 // no pueda saltárselas.
 
@@ -29,6 +30,16 @@ export function esUUID(valor) {
   return typeof valor === "string" && UUID_REGEX.test(valor);
 }
 
+// Fecha en formato AAAA-MM-DD, no futura y no anterior a 120 años
+export function validarFechaNacimiento(fecha) {
+  if (typeof fecha !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return false;
+  const d = new Date(fecha + "T00:00:00Z");
+  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== fecha) return false;
+  const hoy = new Date();
+  const hace120 = new Date(Date.UTC(hoy.getUTCFullYear() - 120, hoy.getUTCMonth(), hoy.getUTCDate()));
+  return d <= hoy && d >= hace120;
+}
+
 export function validarRegistro(datos) {
   const errores = [];
   if (!datos.nombre || !datos.nombre.trim()) errores.push("El nombre es obligatorio.");
@@ -38,7 +49,8 @@ export function validarRegistro(datos) {
   // El tipo de sangre es opcional al registrarse: se pide al activar el rol de donante
   if (datos.tipoSangre != null && !TIPOS_SANGRE.includes(datos.tipoSangre))
     errores.push("El tipo de sangre no es válido.");
-  if (!datos.ciudad || !datos.ciudad.trim()) errores.push("La ciudad es obligatoria.");
+  if (!datos.ciudad || !ciudadValida(datos.ciudad)) errores.push("Selecciona una ciudad de la lista.");
+  if (!validarFechaNacimiento(datos.fechaNacimiento)) errores.push("La fecha de nacimiento no es válida.");
   return errores;
 }
 
@@ -175,6 +187,16 @@ export function tiempoRelativo(fecha, ahora = new Date()) {
   return `hace ${dias} d`;
 }
 
+// La columna DATE llega como Date; se devuelve como AAAA-MM-DD
+export function formatearFecha(valor) {
+  if (!valor) return null;
+  if (typeof valor === "string") return valor.slice(0, 10);
+  const y = valor.getFullYear();
+  const m = String(valor.getMonth() + 1).padStart(2, "0");
+  const d = String(valor.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 // Forma pública de un donante (nunca se devuelve el hash de la contraseña)
 export function serializarDonante(fila) {
   return {
@@ -183,6 +205,7 @@ export function serializarDonante(fila) {
     correo: fila.correo,
     tipoSangre: fila.tipo_sangre,
     ciudad: fila.ciudad,
+    fechaNacimiento: formatearFecha(fila.fecha_nacimiento),
     disponible: fila.disponible,
     donacionesRealizadas: fila.donaciones_realizadas,
     esDonante: fila.es_donante,
