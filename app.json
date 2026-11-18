@@ -23,6 +23,9 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "scheme": "vidaenred"
+    "scheme": "vidaenred",
+    "plugins": [
+      "expo-status-bar"
+    ]
   }
 }
