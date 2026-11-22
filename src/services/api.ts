@@ -1,3 +1,4 @@
+import Constants from "expo-constants";
 import {
   Donante,
   DonacionHistorial,
@@ -11,12 +12,22 @@ import {
   TipoSangre,
 } from "../types/models";
 
-// En el celular o emulador, "localhost" apunta al propio dispositivo.
-// Define EXPO_PUBLIC_API_URL con la IP de tu computador, ej. http://192.168.1.20:3000/api
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000/api";
+const PUERTO_API = 3000;
 
-// Una versión de producción nunca debe apuntar a localhost por omisión
-if (!__DEV__ && !process.env.EXPO_PUBLIC_API_URL) {
+// En desarrollo, Expo ya sabe la IP de la Mac desde la que se abre la app.
+// Así la API se encuentra sola, sin escribir ninguna IP a mano.
+function direccionDesarrollo(): string {
+  const hostUri = Constants.expoConfig?.hostUri ?? Constants.expoGoConfig?.debuggerHost ?? "";
+  const host = hostUri.split(":")[0];
+  const esIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
+  return esIp ? `http://${host}:${PUERTO_API}/api` : `http://localhost:${PUERTO_API}/api`;
+}
+
+// Prioridad: EXPO_PUBLIC_API_URL (si se define) > detección automática en desarrollo
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? (__DEV__ ? direccionDesarrollo() : "");
+
+// Una versión de producción nunca debe quedar sin dirección de API
+if (!__DEV__ && !BASE_URL) {
   throw new Error("Falta EXPO_PUBLIC_API_URL: define la dirección de la API en eas.json.");
 }
 
@@ -53,7 +64,10 @@ async function peticion<T>(ruta: string, opciones: OpcionesPeticion = {}): Promi
       body: opciones.body !== undefined ? JSON.stringify(opciones.body) : undefined,
     });
   } catch {
-    throw new ApiError("No se pudo conectar con el servidor. Revisa tu conexión.", 0);
+    throw new ApiError(
+      `No se pudo conectar con el servidor en ${BASE_URL}. Revisa que el backend esté encendido (npm run diagnostico).`,
+      0
+    );
   }
 
   const datos = await respuesta.json().catch(() => ({}));

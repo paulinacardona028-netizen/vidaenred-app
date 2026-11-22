@@ -1,5 +1,5 @@
 // Crea las tablas en PostgreSQL ejecutando db/schema.sql
-import "dotenv/config";
+import "../src/config.js";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";

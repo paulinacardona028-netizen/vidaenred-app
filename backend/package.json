@@ -12,7 +12,8 @@
     "start": "node src/index.js",
     "start:produccion": "node scripts/migrar.js && node src/index.js",
     "db:migrar": "node scripts/migrar.js",
-    "db:importar-entidades": "node scripts/importar-entidades.js"
+    "db:importar-entidades": "node scripts/importar-entidades.js",
+    "diagnostico": "node scripts/diagnostico.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",

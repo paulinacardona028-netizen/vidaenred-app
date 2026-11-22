@@ -11,7 +11,7 @@
 //   es_aliada: si | no
 // Si una línea tiene errores, no se importa ninguna: se corrige el archivo y se vuelve a ejecutar.
 // Las entidades que ya existen (mismo nombre y ciudad) se omiten.
-import "dotenv/config";
+import "../src/config.js";
 import { readFileSync } from "node:fs";
 import { pool } from "../src/db.js";
 import { TIPOS_ENTIDAD } from "../src/lib/reglas.js";

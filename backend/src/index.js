@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./config.js";
 import { crearApp } from "./app.js";
 import { pool } from "./db.js";
 
