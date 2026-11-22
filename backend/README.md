@@ -15,11 +15,11 @@ npm install
 cp .env.example .env        # edita DATABASE_URL y JWT_SECRET
 createdb vidaenred          # o crea la base desde pgAdmin
 npm run db:migrar           # crea las tablas
-npm run db:seed             # datos de prueba (contraseña: demo1234)
+npm run db:importar-entidades  # carga el catálogo desde data/entidades.csv (llénalo con datos reales)
 npm run dev                 # servidor en http://localhost:3000
 ```
 
-Cuentas de prueba: `juan.perez@correo.com`, `maria.gomez@correo.com`, `carlos.ruiz@correo.com`, `laura.diaz@correo.com`. Contraseña de todas: `demo1234`.
+Las cuentas, solicitudes y entidades se crean con datos reales desde la app y la importación; no hay datos de ejemplo.
 
 ## Endpoints
 
@@ -44,3 +44,11 @@ Errores: `400` datos inválidos, `401` sin sesión o credenciales incorrectas, `
 - Un donante solo ve y confirma solicitudes de tipos de sangre compatibles (tabla `COMPATIBILIDAD_DONANTE` en `src/lib/reglas.js`).
 - La contraseña se guarda cifrada con bcrypt; nunca se devuelve en las respuestas.
 - Una misma persona no puede confirmar dos veces la misma solicitud.
+
+## Despliegue en producción
+
+Ver la sección de despliegue del `README.md` de la raíz. Resumen:
+
+- `Dockerfile` en esta carpeta; el contenedor ejecuta `npm run start:produccion`, que aplica el esquema y luego inicia la API.
+- Variables obligatorias: `DATABASE_URL`, `JWT_SECRET`. Recomendadas: `NODE_ENV=production`, `CORS_ORIGIN`.
+- Verificación: `GET /api/health` debe responder `{"ok":true}`.

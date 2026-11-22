@@ -1,0 +1,20 @@
+# Despliegue del backend en Render (https://render.com).
+# Crea el servicio con "New > Blueprint" y elige este repositorio.
+services:
+  - type: web
+    name: vidaenred-api
+    runtime: docker
+    rootDir: backend
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_EXPIRA
+        value: 7d
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false   # se pide al crear el servicio: la URL de PostgreSQL en la nube

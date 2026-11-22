@@ -1,10 +1,11 @@
-import React from "react";
-import { View, Text, Switch, TouchableOpacity, StyleSheet } from "react-native";
+import React, { useState } from "react";
+import { View, Text, Switch, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { CompositeScreenProps } from "@react-navigation/native";
 import { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { RootStackParamList, MainTabParamList } from "../types/navigation";
 import { useApp } from "../context/AppContext";
+import { ApiError } from "../services/api";
 import { colors } from "../styles/colors";
 
 type Props = CompositeScreenProps<
@@ -13,9 +14,41 @@ type Props = CompositeScreenProps<
 >;
 
 export function PerfilScreen({ navigation }: Props) {
-  const { donante, cambiarDisponibilidad, cerrarSesion } = useApp();
+  const { donante, cambiarDisponibilidad, cambiarRoles, cerrarSesion } = useApp();
+  const [guardando, setGuardando] = useState(false);
 
   if (donante === null) return null;
+
+  async function ejecutar(accion: () => Promise<void>) {
+    setGuardando(true);
+    try {
+      await accion();
+    } catch (err) {
+      Alert.alert("Error", err instanceof ApiError ? err.message : "No se pudo guardar el cambio.");
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  function handleRolDonante(activar: boolean) {
+    // Para activarlo hay que pasar por el formulario de requisitos
+    if (activar) {
+      navigation.navigate("Requisitos");
+      return;
+    }
+    Alert.alert(
+      "Dejar de donar",
+      "Ya no verás solicitudes compatibles. Podrás volver a activarlo completando el formulario de requisitos.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Confirmar",
+          style: "destructive",
+          onPress: () => ejecutar(() => cambiarRoles({ esDonante: false })),
+        },
+      ]
+    );
+  }
 
   function handleCerrarSesion() {
     cerrarSesion();
@@ -37,7 +70,41 @@ export function PerfilScreen({ navigation }: Props) {
         <Text style={styles.avatarTexto}>{iniciales}</Text>
       </View>
       <Text style={styles.nombre}>{donante.nombre}</Text>
-      <Text style={styles.tipoSangre}>Tipo {donante.tipoSangre}</Text>
+      <Text style={styles.tipoSangre}>
+        {donante.tipoSangre ? `Tipo ${donante.tipoSangre}` : "Sin tipo de sangre registrado"}
+      </Text>
+
+      <View style={styles.card}>
+        <Text style={styles.tituloCard}>Mis roles</Text>
+
+        <View style={styles.filaInfo}>
+          <View style={styles.textoFila}>
+            <Text style={styles.filaValor}>Puedo donar</Text>
+            <Text style={styles.filaLabel}>
+              {donante.esDonante ? "Activo" : "Completa el formulario de requisitos"}
+            </Text>
+          </View>
+          <Switch
+            value={donante.esDonante}
+            onValueChange={handleRolDonante}
+            disabled={guardando}
+            trackColor={{ true: colors.primary }}
+          />
+        </View>
+
+        <View style={styles.filaInfo}>
+          <View style={styles.textoFila}>
+            <Text style={styles.filaValor}>Necesito sangre</Text>
+            <Text style={styles.filaLabel}>Publica solicitudes para ti o un familiar</Text>
+          </View>
+          <Switch
+            value={donante.esSolicitante}
+            onValueChange={(v) => ejecutar(() => cambiarRoles({ esSolicitante: v }))}
+            disabled={guardando}
+            trackColor={{ true: colors.primary }}
+          />
+        </View>
+      </View>
 
       <View style={styles.card}>
         <View style={styles.filaInfo}>
@@ -48,15 +115,22 @@ export function PerfilScreen({ navigation }: Props) {
           <Text style={styles.filaLabel}>Donaciones</Text>
           <Text style={styles.filaValor}>{donante.donacionesRealizadas}</Text>
         </View>
-        <View style={styles.filaInfo}>
-          <Text style={styles.filaLabel}>Disponible para donar</Text>
-          <Switch
-            value={donante.disponible}
-            onValueChange={cambiarDisponibilidad}
-            trackColor={{ true: colors.primary }}
-          />
-        </View>
+        {donante.esDonante && (
+          <View style={styles.filaInfo}>
+            <Text style={styles.filaLabel}>Disponible para donar</Text>
+            <Switch
+              value={donante.disponible}
+              onValueChange={(v) => ejecutar(() => cambiarDisponibilidad(v))}
+              disabled={guardando}
+              trackColor={{ true: colors.primary }}
+            />
+          </View>
+        )}
       </View>
+
+      <TouchableOpacity style={styles.botonHistorial} onPress={() => navigation.navigate("Historial")}>
+        <Text style={styles.botonHistorialTexto}>Mi historial de donaciones</Text>
+      </TouchableOpacity>
 
       <TouchableOpacity style={styles.botonSalir} onPress={handleCerrarSesion}>
         <Text style={styles.botonSalirTexto}>Cerrar sesión</Text>
@@ -85,15 +159,29 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 12,
     padding: 16,
+    marginBottom: 12,
   },
+  tituloCard: { fontSize: 14, fontWeight: "bold", color: colors.text, marginBottom: 4 },
   filaInfo: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: 10,
+    gap: 12,
   },
-  filaLabel: { color: colors.textLight, fontSize: 14 },
+  textoFila: { flex: 1 },
+  filaLabel: { color: colors.textLight, fontSize: 13 },
   filaValor: { color: colors.text, fontSize: 14, fontWeight: "600" },
-  botonSalir: { marginTop: 24 },
+  botonHistorial: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: 4,
+  },
+  botonHistorialTexto: { color: colors.text, fontWeight: "600" },
+  botonSalir: { marginTop: 12 },
   botonSalirTexto: { color: colors.urgentText, fontWeight: "600" },
 });
