@@ -15,7 +15,7 @@
     "db:importar-entidades": "node scripts/importar-entidades.js",
     "diagnostico": "node scripts/diagnostico.js",
     "test": "node --test test/reglas.test.js test/api.test.js",
-    "test:cobertura": "node --test --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=coverage/lcov.info test/reglas.test.js test/api.test.js"
+    "test:cobertura": "mkdir -p coverage && node --test --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=coverage/lcov.info test/reglas.test.js test/api.test.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
