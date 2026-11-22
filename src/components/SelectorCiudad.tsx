@@ -19,14 +19,17 @@ export function SelectorCiudad({ valor, onChange, etiqueta = "Ciudad" }: Props) 
   const [abierto, setAbierto] = useState(false);
   const [ciudades, setCiudades] = useState<string[]>([]);
   const [busqueda, setBusqueda] = useState("");
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  function cargar() {
+    setError(null);
     api
       .listarCiudades()
       .then(setCiudades)
-      .catch(() => setError(true));
-  }, []);
+      .catch((err) => setError(err instanceof Error ? err.message : "Error desconocido"));
+  }
+
+  useEffect(cargar, []);
 
   const filtradas = useMemo(
     () => ciudades.filter((c) => normalizar(c).includes(normalizar(busqueda))),
@@ -61,7 +64,14 @@ export function SelectorCiudad({ valor, onChange, etiqueta = "Ciudad" }: Props) 
             autoCorrect={false}
           />
 
-          {error && <Text style={styles.vacio}>No se pudieron cargar las ciudades. Revisa tu conexión.</Text>}
+          {error && (
+            <View>
+              <Text style={styles.vacio}>No se pudieron cargar las ciudades: {error}</Text>
+              <TouchableOpacity style={styles.reintentar} onPress={cargar}>
+                <Text style={styles.reintentarTexto}>Reintentar</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           <FlatList
             data={filtradas}
@@ -127,4 +137,6 @@ const styles = StyleSheet.create({
   filaTexto: { fontSize: 16, color: colors.text },
   filaTextoActiva: { color: colors.primary, fontWeight: "600" },
   vacio: { color: colors.urgentText, marginVertical: 10 },
+  reintentar: { alignSelf: "flex-start", borderWidth: 1, borderColor: colors.primary, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
+  reintentarTexto: { color: colors.primary, fontWeight: "600" },
 });
