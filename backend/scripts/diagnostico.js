@@ -45,6 +45,18 @@ try {
   errores++;
 }
 
+console.log("3b. Versión de la API (detecta procesos viejos en el puerto)");
+for (const ruta of ["/api/ciudades", "/api/entidades"]) {
+  try {
+    const r = await fetch(`http://localhost:${PORT}${ruta}`);
+    if (r.ok) ok(`${ruta} responde (versión actual)`);
+    else { fallo(`${ruta} responde ${r.status}: hay un backend viejo en el puerto ${PORT}. Ciérralo y vuelve a ejecutar "npm run dev" en esta carpeta`); errores++; }
+  } catch {
+    fallo(`${ruta} no responde`);
+    errores++;
+  }
+}
+
 console.log("4. Direcciones de red donde el celular puede encontrar esta Mac");
 const ips = Object.values(os.networkInterfaces())
   .flat()

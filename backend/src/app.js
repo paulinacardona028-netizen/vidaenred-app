@@ -1,10 +1,15 @@
 import express from "express";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import cors from "cors";
 import authRoutes from "./routes/auth.js";
 import donanteRoutes from "./routes/donante.js";
 import solicitudesRoutes from "./routes/solicitudes.js";
 import entidadesRoutes from "./routes/entidades.js";
 import ciudadesRoutes from "./routes/ciudades.js";
+
+const RAIZ_BACKEND = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const OPENAPI = path.join(RAIZ_BACKEND, "docs", "openapi.json");
 
 export function crearApp() {
   const app = express();
@@ -13,6 +18,18 @@ export function crearApp() {
   app.use(express.json());
 
   app.get("/api/health", (req, res) => res.json({ ok: true }));
+
+  // Documentación de la API: especificación OpenAPI y visor Swagger UI
+  app.get("/api/docs/openapi.json", (req, res) => res.sendFile(OPENAPI));
+  app.get("/api/docs", (req, res) =>
+    res.type("html").send(`<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>VidaEnRed API</title>
+<link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui.css"></head>
+<body><div id="swagger"></div>
+<script src="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui-bundle.js"></script>
+<script>window.onload=()=>SwaggerUIBundle({url:"/api/docs/openapi.json",dom_id:"#swagger"});</script>
+</body></html>`)
+  );
 
   app.use("/api/auth", authRoutes);
   app.use("/api/donante", donanteRoutes);
