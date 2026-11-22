@@ -13,7 +13,9 @@
     "start:produccion": "node scripts/migrar.js && node src/index.js",
     "db:migrar": "node scripts/migrar.js",
     "db:importar-entidades": "node scripts/importar-entidades.js",
-    "diagnostico": "node scripts/diagnostico.js"
+    "diagnostico": "node scripts/diagnostico.js",
+    "test": "node --test test/reglas.test.js test/api.test.js",
+    "test:cobertura": "node --test --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=coverage/lcov.info test/reglas.test.js test/api.test.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",

@@ -1,0 +1,1368 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "VidaEnRed API",
+    "version": "1.0.0",
+    "description": "API REST de VidaEnRed: conecta solicitudes de sangre con donantes compatibles cercanos. Todas las rutas (excepto las marcadas como públicas) requieren el header `Authorization: Bearer <token>` obtenido en el login o el registro."
+  },
+  "servers": [
+    {
+      "url": "/api",
+      "description": "Servidor actual"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Estado",
+      "description": "Verificación del servicio"
+    },
+    {
+      "name": "Autenticación",
+      "description": "Registro, inicio de sesión y recuperación de contraseña"
+    },
+    {
+      "name": "Donante",
+      "description": "Perfil, roles, requisitos, historial y notificaciones"
+    },
+    {
+      "name": "Solicitudes",
+      "description": "Publicar, consultar, confirmar y cerrar solicitudes de sangre"
+    },
+    {
+      "name": "Catálogos",
+      "description": "Entidades aliadas y ciudades (públicos)"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Estado del servicio",
+        "tags": [
+          "Estado"
+        ],
+        "responses": {
+          "200": {
+            "description": "Servicio activo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "example": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/registro": {
+      "post": {
+        "summary": "Crear una cuenta",
+        "tags": [
+          "Autenticación"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatosRegistro"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Cuenta creada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaSesion"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos no válidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "El correo ya está registrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "Iniciar sesión",
+        "tags": [
+          "Autenticación"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "correo",
+                  "contrasena"
+                ],
+                "properties": {
+                  "correo": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "contrasena": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sesión iniciada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaSesion"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Cuerpo no válido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Correo o contraseña incorrectos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/recuperar": {
+      "post": {
+        "summary": "Solicitar código de recuperación",
+        "tags": [
+          "Autenticación"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "correo"
+                ],
+                "properties": {
+                  "correo": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Respuesta genérica (no revela si el correo existe)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/restablecer": {
+      "post": {
+        "summary": "Restablecer la contraseña con el código",
+        "tags": [
+          "Autenticación"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "correo",
+                  "codigo",
+                  "contrasena"
+                ],
+                "properties": {
+                  "correo": {
+                    "type": "string"
+                  },
+                  "codigo": {
+                    "type": "string",
+                    "example": "123456"
+                  },
+                  "contrasena": {
+                    "type": "string",
+                    "minLength": 6
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Contraseña actualizada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Código incorrecto, vencido o ya usado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/donante": {
+      "get": {
+        "summary": "Perfil de la cuenta autenticada",
+        "tags": [
+          "Donante"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Perfil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Donante"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/donante/disponibilidad": {
+      "patch": {
+        "summary": "Activar o pausar la disponibilidad para donar",
+        "tags": [
+          "Donante"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "disponible"
+                ],
+                "properties": {
+                  "disponible": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Perfil actualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Donante"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "La cuenta no tiene el rol de donante",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/donante/roles": {
+      "patch": {
+        "summary": "Cambiar los roles (donante y solicitante)",
+        "tags": [
+          "Donante"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "esDonante": {
+                    "type": "boolean"
+                  },
+                  "esSolicitante": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Roles actualizados",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Donante"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Activar donante requiere el formulario, o no quedó ningún rol activo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/donante/evaluacion": {
+      "post": {
+        "summary": "Enviar el formulario de requisitos para donar",
+        "tags": [
+          "Donante"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RespuestasEvaluacion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Resultado de la evaluación",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoEvaluacion"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos del formulario no válidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/donante/historial": {
+      "get": {
+        "summary": "Donaciones completadas de la cuenta",
+        "tags": [
+          "Donante"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Historial",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DonacionHistorial"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/donante/notificaciones": {
+      "get": {
+        "summary": "Notificaciones de la cuenta (últimas 50)",
+        "tags": [
+          "Donante"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notificaciones",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Notificacion"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/donante/notificaciones/leer": {
+      "post": {
+        "summary": "Marcar todas las notificaciones como leídas",
+        "tags": [
+          "Donante"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Hecho",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/entidades": {
+      "get": {
+        "summary": "Entidades aliadas (público)",
+        "tags": [
+          "Catálogos"
+        ],
+        "parameters": [
+          {
+            "name": "tipo",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Hospital",
+                "Urgencias",
+                "Banco de sangre",
+                "Clínica"
+              ]
+            }
+          },
+          {
+            "name": "ciudad",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ignora tildes y mayúsculas"
+          },
+          {
+            "name": "incluirNoAliadas",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Entidades",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Entidad"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Tipo no válido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ciudades": {
+      "get": {
+        "summary": "Lista de ciudades válidas (público)",
+        "tags": [
+          "Catálogos"
+        ],
+        "responses": {
+          "200": {
+            "description": "Ciudades",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/solicitudes/compatibles": {
+      "get": {
+        "summary": "Solicitudes compatibles con el tipo del donante disponible",
+        "tags": [
+          "Solicitudes"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Solicitudes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Solicitud"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "La cuenta no es donante",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/solicitudes/mias": {
+      "get": {
+        "summary": "Solicitudes publicadas por la cuenta",
+        "tags": [
+          "Solicitudes"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Solicitudes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Solicitud"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "La cuenta no es solicitante",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/solicitudes": {
+      "post": {
+        "summary": "Publicar una solicitud de sangre",
+        "tags": [
+          "Solicitudes"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NuevaSolicitud"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Solicitud creada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Solicitud"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos no válidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "La cuenta no es solicitante",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/solicitudes/{id}": {
+      "get": {
+        "summary": "Detalle de una solicitud",
+        "tags": [
+          "Solicitudes"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Solicitud",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Solicitud"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/solicitudes/{id}/donaciones": {
+      "post": {
+        "summary": "Confirmar que puedo donar para esta solicitud",
+        "tags": [
+          "Solicitudes"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Confirmación registrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Solicitud"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Tipo de sangre incompatible o sin rol de donante",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Ya confirmó o la solicitud está cerrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/solicitudes/{id}/resolver": {
+      "post": {
+        "summary": "Cerrar la solicitud y registrar las donaciones realizadas",
+        "tags": [
+          "Solicitudes"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "donantesIds"
+                ],
+                "properties": {
+                  "donantesIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Solicitud cerrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Solicitud"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Solo quien publicó puede cerrarla",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Ya estaba cerrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "DatosRegistro": {
+        "type": "object",
+        "required": [
+          "nombre",
+          "correo",
+          "contrasena",
+          "ciudad",
+          "fechaNacimiento"
+        ],
+        "properties": {
+          "nombre": {
+            "type": "string"
+          },
+          "correo": {
+            "type": "string",
+            "format": "email"
+          },
+          "contrasena": {
+            "type": "string",
+            "minLength": 6
+          },
+          "ciudad": {
+            "type": "string",
+            "example": "Medellín"
+          },
+          "fechaNacimiento": {
+            "type": "string",
+            "format": "date",
+            "example": "1995-03-10"
+          },
+          "tipoSangre": {
+            "type": "string",
+            "enum": [
+              "A+",
+              "A-",
+              "B+",
+              "B-",
+              "AB+",
+              "AB-",
+              "O+",
+              "O-"
+            ]
+          }
+        }
+      },
+      "RespuestaSesion": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "donante": {
+            "$ref": "#/components/schemas/Donante"
+          }
+        }
+      },
+      "Donante": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "correo": {
+            "type": "string"
+          },
+          "tipoSangre": {
+            "type": "string",
+            "nullable": true
+          },
+          "ciudad": {
+            "type": "string"
+          },
+          "fechaNacimiento": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "disponible": {
+            "type": "boolean"
+          },
+          "donacionesRealizadas": {
+            "type": "integer"
+          },
+          "esDonante": {
+            "type": "boolean"
+          },
+          "esSolicitante": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RespuestasEvaluacion": {
+        "type": "object",
+        "required": [
+          "tipoSangre",
+          "fechaNacimiento",
+          "pesoKg",
+          "sexo",
+          "condiciones"
+        ],
+        "properties": {
+          "tipoSangre": {
+            "type": "string"
+          },
+          "fechaNacimiento": {
+            "type": "string",
+            "format": "date"
+          },
+          "pesoKg": {
+            "type": "number"
+          },
+          "sexo": {
+            "type": "string",
+            "enum": [
+              "F",
+              "M"
+            ]
+          },
+          "fechaUltimaDonacion": {
+            "type": "string",
+            "format": "date"
+          },
+          "embarazoOLactancia": {
+            "type": "boolean"
+          },
+          "tatuajeOPiercingReciente": {
+            "type": "boolean"
+          },
+          "antibioticosRecientes": {
+            "type": "boolean"
+          },
+          "fiebreHoy": {
+            "type": "boolean"
+          },
+          "condiciones": {
+            "type": "object",
+            "properties": {
+              "vih": {
+                "type": "boolean"
+              },
+              "hepatitisBC": {
+                "type": "boolean"
+              },
+              "cancer": {
+                "type": "boolean"
+              },
+              "cardiaca": {
+                "type": "boolean"
+              },
+              "diabetesInsulina": {
+                "type": "boolean"
+              },
+              "drogasInyectadas": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      },
+      "ResultadoEvaluacion": {
+        "type": "object",
+        "properties": {
+          "cumple": {
+            "type": "boolean"
+          },
+          "motivos": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "tipo": {
+                  "type": "string",
+                  "enum": [
+                    "excluyente",
+                    "temporal"
+                  ]
+                },
+                "mensaje": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "reintentarEn": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "donante": {
+            "$ref": "#/components/schemas/Donante"
+          }
+        }
+      },
+      "NuevaSolicitud": {
+        "type": "object",
+        "required": [
+          "tipoSangre",
+          "urgencia"
+        ],
+        "properties": {
+          "tipoSangre": {
+            "type": "string"
+          },
+          "urgencia": {
+            "type": "string",
+            "enum": [
+              "Alta",
+              "Moderada",
+              "Programada"
+            ]
+          },
+          "entidadId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "hospital": {
+            "type": "string",
+            "description": "Obligatorio si no se envía entidadId"
+          },
+          "pacienteNombre": {
+            "type": "string"
+          },
+          "contactoTelefono": {
+            "type": "string",
+            "description": "Privado: nunca se devuelve en las respuestas"
+          }
+        }
+      },
+      "Solicitud": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tipoSangre": {
+            "type": "string"
+          },
+          "hospital": {
+            "type": "string"
+          },
+          "ciudad": {
+            "type": "string"
+          },
+          "distanciaKm": {
+            "type": "number",
+            "nullable": true
+          },
+          "urgencia": {
+            "type": "string"
+          },
+          "creadaHace": {
+            "type": "string"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "activa",
+              "resuelta"
+            ]
+          },
+          "entidadId": {
+            "type": "string",
+            "nullable": true
+          },
+          "latitud": {
+            "type": "number",
+            "nullable": true
+          },
+          "longitud": {
+            "type": "number",
+            "nullable": true
+          },
+          "donantesConfirmados": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "donantesIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "yaConfirmo": {
+            "type": "boolean"
+          },
+          "esMia": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Entidad": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "tipo": {
+            "type": "string"
+          },
+          "ciudad": {
+            "type": "string"
+          },
+          "telefono": {
+            "type": "string",
+            "nullable": true
+          },
+          "latitud": {
+            "type": "number",
+            "nullable": true
+          },
+          "longitud": {
+            "type": "number",
+            "nullable": true
+          },
+          "esAliada": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DonacionHistorial": {
+        "type": "object",
+        "properties": {
+          "solicitudId": {
+            "type": "string"
+          },
+          "hospital": {
+            "type": "string"
+          },
+          "tipoSangre": {
+            "type": "string"
+          },
+          "urgencia": {
+            "type": "string"
+          },
+          "completadaEn": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Notificacion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "tipo": {
+            "type": "string"
+          },
+          "mensaje": {
+            "type": "string"
+          },
+          "solicitudId": {
+            "type": "string",
+            "nullable": true
+          },
+          "leida": {
+            "type": "boolean"
+          },
+          "creadaEn": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  }
+}
