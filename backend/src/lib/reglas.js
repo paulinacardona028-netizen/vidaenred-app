@@ -245,5 +245,6 @@ export function serializarEntidad(fila) {
     latitud: fila.latitud === null ? null : Number(fila.latitud),
     longitud: fila.longitud === null ? null : Number(fila.longitud),
     esAliada: fila.es_aliada,
+    logoUrl: fila.logo_url ?? null,
   };
 }

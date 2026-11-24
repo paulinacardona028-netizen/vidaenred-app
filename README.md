@@ -22,7 +22,7 @@ Toda la documentación está en la carpeta [`docs/`](docs/README.md):
 | App móvil | Expo SDK 58, React Native, TypeScript (modo estricto) |
 | Backend | Node.js 22, Express 5, JWT, bcrypt |
 | Base de datos | PostgreSQL |
-| Pruebas | Node test runner (58 pruebas), cobertura 93 % líneas |
+| Pruebas | Node test runner (66 pruebas), cobertura 93 % líneas |
 | Calidad | SonarCloud (`sonar-project.properties`) |
 | CI/CD | GitHub Actions, Docker, Render, EAS Build |
 
@@ -70,4 +70,4 @@ Usa siempre una base de datos de prueba: las pruebas de integración borran y re
 
 ## Estado del proyecto
 
-Lo implementado y probado está en la [sección de alcance](docs/01-contexto-usuario-alcance.md#alcance). Pendientes conocidos: envío de correos, notificaciones push y validación de los umbrales médicos con un banco de sangre.
+Lo implementado y probado está en la [sección de alcance](docs/01-contexto-usuario-alcance.md#alcance). Pendientes conocidos: notificaciones push y validación de los umbrales médicos con un banco de sangre. El código de recuperación se envía por correo con Resend (ver `RESEND_API_KEY` y `MAIL_FROM` en `backend/.env.example`).

@@ -17,6 +17,7 @@ La documentación completa e interactiva está en **`/api/docs`** (Swagger UI) y
 | 403 | Sesión válida, pero sin el rol necesario, o tipo de sangre incompatible |
 | 404 | Recurso no encontrado |
 | 409 | Conflicto: correo repetido, donación ya confirmada, solicitud ya cerrada |
+| 429 | Demasiados intentos (login, recuperación o restablecimiento); se libera tras 15 minutos |
 | 500 | Error interno. Se registra en el servidor y el cliente recibe un mensaje genérico |
 
 ## Endpoints

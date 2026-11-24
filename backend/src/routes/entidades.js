@@ -6,8 +6,8 @@ import { normalizarCiudad } from "../lib/ciudades.js";
 // Catálogo público: no requiere sesión, así el carrusel de inicio funciona siempre.
 const router = Router();
 
-// GET /api/entidades?tipo=Hospital&incluirNoAliadas=true
-// Por defecto solo devuelve las entidades aliadas.
+// GET /api/entidades?ciudad=Bello&incluirNoAliadas=true&limite=3
+// Por defecto solo devuelve las entidades aliadas. "limite" devuelve solo las de mayor prioridad.
 router.get("/", async (req, res) => {
   const condiciones = [];
   const params = [];
@@ -29,7 +29,22 @@ router.get("/", async (req, res) => {
   }
 
   const where = condiciones.length > 0 ? `WHERE ${condiciones.join(" AND ")}` : "";
-  const { rows } = await query(`SELECT * FROM entidades ${where} ORDER BY tipo, nombre`, params);
+
+  // Las más importantes primero: prioridad 1, 2, 3...; luego las aliadas y por nombre
+  let limite = "";
+  if (req.query.limite !== undefined) {
+    const n = Number(req.query.limite);
+    if (!Number.isInteger(n) || n < 1 || n > 50) {
+      return res.status(400).json({ error: "El límite debe ser un número entre 1 y 50." });
+    }
+    params.push(n);
+    limite = `LIMIT $${params.length}`;
+  }
+  const { rows } = await query(
+    `SELECT * FROM entidades ${where}
+     ORDER BY prioridad ASC NULLS LAST, es_aliada DESC, nombre ASC ${limite}`,
+    params
+  );
   res.json(rows.map(serializarEntidad));
 });
 

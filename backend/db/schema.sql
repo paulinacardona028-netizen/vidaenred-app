@@ -56,6 +56,10 @@ CREATE TABLE IF NOT EXISTS entidades (
   longitud   NUMERIC(9,6),
   es_aliada  BOOLEAN NOT NULL DEFAULT FALSE
 );
+-- Logo opcional (URL https). Si está vacío, la app muestra las iniciales de la entidad.
+ALTER TABLE entidades ADD COLUMN IF NOT EXISTS logo_url TEXT;
+-- Prioridad para destacar en el carrusel: 1 = la más conocida de la ciudad. Vacía = sin destacar.
+ALTER TABLE entidades ADD COLUMN IF NOT EXISTS prioridad INTEGER;
 
 -- ── Historial de evaluaciones del formulario de requisitos ──
 CREATE TABLE IF NOT EXISTS evaluaciones_elegibilidad (

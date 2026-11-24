@@ -260,6 +260,24 @@ if (!URL_PRUEBA) {
       assert.ok(!r.datos.some((e) => e.nombre === "Hospital de Cartagena"));
     });
 
+    test("con limite devuelve solo las de mayor prioridad", async () => {
+      await pool.query(
+        `INSERT INTO entidades (nombre, tipo, ciudad, es_aliada, prioridad) VALUES
+         ('Cuarta', 'Hospital', 'Bello', FALSE, 4),
+         ('Primera', 'Hospital', 'Bello', FALSE, 1),
+         ('Tercera', 'Hospital', 'Bello', FALSE, 3),
+         ('Segunda', 'Hospital', 'Bello', FALSE, 2)`
+      );
+      const r = await peticion("/entidades?ciudad=Bello&incluirNoAliadas=true&limite=3");
+      assert.equal(r.status, 200);
+      assert.deepEqual(r.datos.map((e) => e.nombre), ["Primera", "Segunda", "Tercera"]);
+    });
+
+    test("un límite inválido responde 400", async () => {
+      const r = await peticion("/entidades?limite=0");
+      assert.equal(r.status, 400);
+    });
+
     test("un tipo de entidad inválido responde 400", async () => {
       const r = await peticion("/entidades?tipo=Farmacia");
       assert.equal(r.status, 400);

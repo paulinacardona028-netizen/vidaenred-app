@@ -8,8 +8,12 @@ if (!DATABASE_URL) {
   console.error("Falta DATABASE_URL en el archivo .env");
   process.exit(1);
 }
-if (!JWT_SECRET || JWT_SECRET.startsWith("cambia-esta-clave")) {
-  console.error("Define un JWT_SECRET seguro en el archivo .env");
+// Rechaza secretos vacíos, cortos o copiados del ejemplo (que empiezan por "cambia-")
+if (!JWT_SECRET || JWT_SECRET.length < 32 || JWT_SECRET.startsWith("cambia-")) {
+  console.error(
+    "JWT_SECRET no es seguro: debe tener al menos 32 caracteres y no puede ser el valor de ejemplo. " +
+      "Genera uno con: node -e \"console.log(require('crypto').randomBytes(48).toString('hex'))\""
+  );
   process.exit(1);
 }
 
