@@ -17,13 +17,13 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://TU-API-EN-PRODUCCION/api"
+        "EXPO_PUBLIC_API_URL": "https://vidaenred-api.onrender.com/api"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://TU-API-EN-PRODUCCION/api"
+        "EXPO_PUBLIC_API_URL": "https://vidaenred-api.onrender.com/api"
       }
     }
   },
