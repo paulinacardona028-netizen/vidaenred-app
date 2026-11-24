@@ -1,1 +1,7 @@
-nombre,tipo,ciudad,telefono,latitud,longitud,es_aliada
+nombre,tipo,ciudad,telefono,latitud,longitud,es_aliada,logo_url,prioridad
+E.S.E. Hospital Marco Fidel Suárez,Hospital,Bello,,,,no,,1
+Hospital Mental de Antioquia María Upegui (HOMO),Hospital,Bello,,,,no,,2
+E.S.E. Bello Salud,Hospital,Bello,,,,no,,3
+E.S.E. Hospital General de Medellín Luz Castro de Gutiérrez,Hospital,Medellín,,,,no,,1
+Hospital Pablo Tobón Uribe,Hospital,Medellín,,,,no,,2
+Hospital Universitario San Vicente Fundación,Hospital,Medellín,,,,no,,3

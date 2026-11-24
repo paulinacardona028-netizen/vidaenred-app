@@ -135,10 +135,12 @@ export const api = {
     peticion<{ ok: boolean }>("/donante/notificaciones/leer", { method: "POST" }),
 
   // ── Catálogo de entidades (público) ──
-  listarEntidades: (filtros: { tipo?: TipoEntidad; ciudad?: string } = {}) => {
+  listarEntidades: (filtros: { tipo?: TipoEntidad; ciudad?: string; limite?: number; incluirNoAliadas?: boolean } = {}) => {
     const params: string[] = [];
     if (filtros.tipo) params.push(`tipo=${encodeURIComponent(filtros.tipo)}`);
     if (filtros.ciudad) params.push(`ciudad=${encodeURIComponent(filtros.ciudad)}`);
+    if (filtros.limite) params.push(`limite=${filtros.limite}`);
+    if (filtros.incluirNoAliadas) params.push("incluirNoAliadas=true");
     return peticion<Entidad[]>(`/entidades${params.length ? `?${params.join("&")}` : ""}`);
   },
 

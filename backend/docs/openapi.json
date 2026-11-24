@@ -1314,6 +1314,11 @@
           },
           "esAliada": {
             "type": "boolean"
+          },
+          "logoUrl": {
+            "type": "string",
+            "nullable": true,
+            "description": "URL https del logo de la entidad. Null si no tiene logo."
           }
         }
       },

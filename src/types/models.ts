@@ -94,6 +94,7 @@ export interface Entidad {
   latitud: number | null;
   longitud: number | null;
   esAliada: boolean;
+  logoUrl: string | null;
 }
 
 // Donación completada que aparece en el historial del donante

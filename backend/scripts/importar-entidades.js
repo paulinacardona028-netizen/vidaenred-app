@@ -9,6 +9,8 @@
 //   tipo: Hospital | Urgencias | Banco de sangre | Clínica
 //   latitud / longitud: opcionales (decimales, ej. 6.2442 y -75.5812)
 //   es_aliada: si | no
+//   logo_url: opcional, URL https del logo. Si se deja vacío, la app muestra las iniciales.
+//   prioridad: opcional, entero >= 1. 1 = la más conocida de la ciudad (el carrusel muestra las 3 primeras).
 // Si una línea tiene errores, no se importa ninguna: se corrige el archivo y se vuelve a ejecutar.
 // Las entidades que ya existen (mismo nombre y ciudad) se omiten.
 import "../src/config.js";
@@ -16,7 +18,7 @@ import { readFileSync } from "node:fs";
 import { pool } from "../src/db.js";
 import { TIPOS_ENTIDAD } from "../src/lib/reglas.js";
 
-const ENCABEZADO = ["nombre", "tipo", "ciudad", "telefono", "latitud", "longitud", "es_aliada"];
+const ENCABEZADO = ["nombre", "tipo", "ciudad", "telefono", "latitud", "longitud", "es_aliada", "logo_url", "prioridad"];
 
 // Lector de CSV sencillo: soporta campos entre comillas, incluidas comas dentro del campo
 function parsearLinea(linea) {
@@ -45,7 +47,7 @@ function parsearLinea(linea) {
 
 function validarFila(campos, numeroLinea) {
   const errores = [];
-  const [nombre, tipo, ciudad, telefono, latitud, longitud, esAliada] = campos;
+  const [nombre, tipo, ciudad, telefono, latitud, longitud, esAliada, logoUrl, prioridad] = campos;
   if (!nombre) errores.push("falta el nombre");
   if (!TIPOS_ENTIDAD.includes(tipo)) errores.push(`tipo "${tipo}" no válido (usa ${TIPOS_ENTIDAD.join(", ")})`);
   if (!ciudad) errores.push("falta la ciudad");
@@ -58,6 +60,8 @@ function validarFila(campos, numeroLinea) {
     if (Number.isNaN(n) || n < min || n > max) errores.push(`${etiqueta} "${valor}" no es válida`);
   }
   if (!["si", "no"].includes(esAliada.toLowerCase())) errores.push('es_aliada debe ser "si" o "no"');
+  if (prioridad !== "" && !(Number.isInteger(Number(prioridad)) && Number(prioridad) >= 1)) errores.push(`prioridad "${prioridad}" debe ser un número entero mayor o igual a 1`);
+  if (logoUrl && !/^https?:\/\/\S+$/i.test(logoUrl)) errores.push(`logo_url "${logoUrl}" debe empezar por http:// o https://`);
   return errores.map((e) => `línea ${numeroLinea}: ${e}`);
 }
 
@@ -112,7 +116,7 @@ try {
   await client.query("BEGIN");
   let insertadas = 0;
   let omitidas = 0;
-  for (const [nombre, tipo, ciudad, telefono, latitud, longitud, esAliada] of datos) {
+  for (const [nombre, tipo, ciudad, telefono, latitud, longitud, esAliada, logoUrl, prioridad] of datos) {
     const { rowCount } = await client.query(
       "SELECT 1 FROM entidades WHERE nombre = $1 AND ciudad = $2",
       [nombre, ciudad]
@@ -122,8 +126,8 @@ try {
       continue;
     }
     await client.query(
-      `INSERT INTO entidades (nombre, tipo, ciudad, telefono, latitud, longitud, es_aliada)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      `INSERT INTO entidades (nombre, tipo, ciudad, telefono, latitud, longitud, es_aliada, logo_url, prioridad)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
         nombre,
         tipo,
@@ -132,6 +136,8 @@ try {
         latitud === "" ? null : Number(latitud),
         longitud === "" ? null : Number(longitud),
         esAliada.toLowerCase() === "si",
+        logoUrl || null,
+        prioridad === "" ? null : Number(prioridad),
       ]
     );
     insertadas++;
