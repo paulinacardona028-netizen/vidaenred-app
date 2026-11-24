@@ -23,7 +23,7 @@ flowchart LR
   solicitante --- uc9((Cerrar solicitud))
   solicitante --- uc6
 
-  uc7 -. incluye .-> uc10((Elegir entidad aliada de mi ciudad))
+  uc7 -. incluye .-> uc10((Elegir entidad del directorio o ingresar hospital))
   uc4 -. dispara .-> uc11((Notificar al solicitante))
   uc7 -. dispara .-> uc12((Notificar a donantes compatibles))
   uc9 -. registra .-> uc13((Historial del donante))
@@ -71,12 +71,13 @@ sequenceDiagram
   S->>App: Elige donantes que sí donaron y toca "Cerrar"
   App->>API: POST /api/solicitudes/{id}/resolver { donantesIds }
   API->>DB: Verifica que la cuenta es la dueña de la solicitud
-  API->>DB: UPDATE solicitud SET estado = resuelta
-  loop Por cada donante que confirmó
+  API->>DB: BEGIN; UPDATE solicitudes SET estado = resuelta
+  loop Por cada donante seleccionado que confirmó
     API->>DB: INSERT donaciones_completadas
     API->>DB: UPDATE donantes SET donaciones_realizadas + 1
     API->>DB: INSERT notificaciones (para el donante)
   end
+  API->>DB: COMMIT (ROLLBACK si falla)
   API-->>App: 200 Solicitud cerrada
 ```
 
@@ -84,7 +85,7 @@ sequenceDiagram
 
 ```mermaid
 erDiagram
-  DONANTES ||--o{ SOLICITUDES : "publica"
+  DONANTES |o--o{ SOLICITUDES : "publica"
   ENTIDADES |o--o{ SOLICITUDES : "atiende"
   SOLICITUDES ||--o{ DONACIONES_CONFIRMADAS : "recibe"
   DONANTES ||--o{ DONACIONES_CONFIRMADAS : "confirma"
@@ -107,6 +108,7 @@ erDiagram
     int donaciones_realizadas
     boolean es_donante
     boolean es_solicitante
+    timestamptz creado_en
   }
   SOLICITUDES {
     uuid id PK
@@ -119,6 +121,7 @@ erDiagram
     text estado
     text paciente_nombre
     text contacto_telefono
+    numeric distancia_km
     timestamptz creada_en
     timestamptz resuelta_en
   }
@@ -130,6 +133,9 @@ erDiagram
     numeric latitud
     numeric longitud
     boolean es_aliada
+    text telefono
+    text logo_url
+    int prioridad
   }
   DONACIONES_CONFIRMADAS {
     uuid solicitud_id PK
@@ -146,6 +152,8 @@ erDiagram
     uuid donante_id FK
     uuid solicitud_id FK
     text tipo
+    text mensaje
+    timestamptz creada_en
     boolean leida
   }
   EVALUACIONES_ELEGIBILIDAD {
@@ -153,6 +161,8 @@ erDiagram
     uuid donante_id FK
     jsonb respuestas
     boolean cumple
+    jsonb motivos
+    timestamptz creada_en
     date reintentar_en
   }
   RECUPERACIONES_CONTRASENA {
@@ -161,10 +171,11 @@ erDiagram
     text codigo_hash
     timestamptz expira_en
     boolean usada
+    timestamptz creada_en
   }
 ```
 
-**Integridad referencial:** las claves foráneas usan `ON DELETE CASCADE` para datos que dependen de una cuenta (notificaciones, evaluaciones, recuperaciones) y `ON DELETE SET NULL` cuando la solicitud debe sobrevivir a la borrada de una entidad.
+**Integridad referencial:** las claves foráneas usan `ON DELETE CASCADE` para datos que dependen de una cuenta (notificaciones, evaluaciones, recuperaciones) y `ON DELETE SET NULL` para solicitante_id y entidad_id en solicitudes. Las notificaciones vinculadas a una solicitud se eliminan en cascada al borrar dicha solicitud.
 
 ## 2.5 Diagrama de componentes
 
@@ -184,12 +195,14 @@ flowchart LR
   maps[Google Maps<br/>externo]
   docs[Swagger UI<br/>/api/docs]
 
-  app -- "REST / JSON<br/>Bearer JWT" --> api
+  app --> contexto[AppContext y services/api.ts]
+  contexto -- "REST / JSON<br/>Bearer JWT" --> api
   api --> reglas
   api --> notif
   api -- "pg (SQL)" --> db
   app -- "Linking: abre ruta" --> maps
-  docs -- "lee openapi.json" --> api
+  api --> docs
+  api --> correo[Resend: recuperación de contraseña]
 ```
 
 ## 2.6 Diagrama de arquitectura (infraestructura)
@@ -199,9 +212,47 @@ flowchart TB
   dev[Desarrollador<br/>GitHub] -->|push| gh[GitHub]
   gh -->|dispara| ci[GitHub Actions<br/>pruebas, cobertura, tipos]
   ci -->|análisis| sonar[SonarCloud<br/>calidad y cobertura]
-  gh -->|despliegue automático| render[Render<br/>API en Docker]
-  render -->|SQL| neon[(Neon<br/>PostgreSQL en la nube)]
+  gh -->|fuente de despliegue| render[Render<br/>API en Docker]
+  render -->|SQL| pg[(PostgreSQL en Render)]
   celular[App en el celular<br/>Expo Go / APK] -->|HTTPS REST| render
   celular -->|abre| maps[Google Maps]
   eas[EAS Build] -->|genera APK / AAB| celular
 ```
+
+## 2.7 Navegación actual
+
+```mermaid
+flowchart TD
+  Login --> MainTabs
+  Login --> RecuperarContrasena
+  MainTabs --> InicioTab
+  MainTabs --> Solicitudes
+  MainTabs --> Entidades
+  MainTabs --> Avisos[NotificacionesScreen]
+  MainTabs --> Perfil
+  MainTabs -. ruta oculta .-> CrearSolicitud
+  InicioTab --> Inicio
+  Inicio --> DetalleSolicitud
+  Solicitudes --> DetalleSolicitud
+  DetalleSolicitud --> ConfirmacionDonacion
+  ConfirmacionDonacion --> Inicio
+  Inicio --> CrearSolicitud
+  Inicio --> Requisitos
+  Inicio --> Notificaciones
+  Perfil --> Historial
+  Perfil --> Requisitos
+```
+
+## 2.8 Cotejo con el código
+
+| Elemento | Fuente | Resultado |
+|---|---|---|
+| Casos de uso | backend/src/routes/{auth,donante,solicitudes,entidades}.js | Roles, registro, evaluación, directorio, publicación, confirmación y cierre implementados. |
+| Confirmación | solicitudes.js, POST /:id/donaciones | Valida rol, estado, compatibilidad y duplicados; notifica al solicitante. |
+| Cierre | solicitudes.js, POST /:id/resolver | Transacción; registra únicamente seleccionados que confirmaron. |
+| ER | backend/db/schema.sql | Ocho tablas; claves y cardinalidades corregidas. |
+| Componentes | src/context/AppContext.tsx, src/services/api.ts, backend/src/app.js | REST, JWT, Swagger, PostgreSQL y servicios externos. |
+| Infraestructura | render.yaml, eas.json, sonar-project.properties, .github/workflows/ci.yml | Render, perfil APK preview y CI con LCOV; base Render confirmada en sesión. |
+| Navegación | src/navigation/*.tsx | Cinco pestañas visibles; creación oculta; Avisos usa NotificacionesScreen. |
+
+**Hallazgos funcionales:** GET /api/solicitudes/compatibles filtra estado, disponibilidad y sangre, pero no ciudad. La pantalla Solicitudes ofrece Todas, Mi grupo y Urgentes, no Mi ciudad. La confirmación comprueba rol, estado y compatibilidad, pero no exige disponibilidad ni evaluación vigente en ese endpoint. Estas diferencias no se presentan como funciones implementadas. La revisión es estática; no sustituye pruebas de dispositivo ni certifica el despliegue actual.
