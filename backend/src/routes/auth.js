@@ -5,8 +5,20 @@ import { createHash, randomInt } from "node:crypto";
 import { query } from "../db.js";
 import { serializarDonante, validarRegistro } from "../lib/reglas.js";
 import { ciudadCanonica } from "../lib/ciudades.js";
+import { enviarCodigoRecuperacion } from "../lib/correo.js";
+import { rateLimit } from "express-rate-limit";
 
 const router = Router();
+
+// Límite de intentos por IP: frena la fuerza bruta de contraseñas y de códigos de 6 dígitos.
+const limitarIntentos = (max) =>
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: max,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    message: { error: "Demasiados intentos. Espera unos minutos e inténtalo de nuevo." },
+  });
 
 function generarToken(donanteId) {
   return jwt.sign({ sub: donanteId }, process.env.JWT_SECRET, {
@@ -52,7 +64,7 @@ router.post("/registro", async (req, res) => {
 });
 
 // POST /api/auth/login
-router.post("/login", async (req, res) => {
+router.post("/login", limitarIntentos(20), async (req, res) => {
   const correo = req.body.correo?.trim().toLowerCase();
   const contrasena = req.body.contrasena ?? "";
 
@@ -70,9 +82,8 @@ router.post("/login", async (req, res) => {
 
 // POST /api/auth/recuperar  body: { correo }
 // Siempre responde igual, exista o no el correo, para no revelar cuentas.
-// PENDIENTE: el envío por correo electrónico. Mientras tanto, en desarrollo el código
-// se muestra en la consola del servidor.
-router.post("/recuperar", async (req, res) => {
+// El código se envía por correo (ver lib/correo.js). En desarrollo, sin correo configurado, se muestra en consola.
+router.post("/recuperar", limitarIntentos(5), async (req, res) => {
   const correo = req.body.correo?.trim().toLowerCase();
   const mensaje = "Si el correo está registrado, recibirás un código para restablecer tu contraseña.";
 
@@ -84,15 +95,13 @@ router.post("/recuperar", async (req, res) => {
        VALUES ($1, $2, now() + interval '30 minutes')`,
       [rows[0].id, hashCodigo(codigo)]
     );
-    if (process.env.NODE_ENV !== "production") {
-      console.log(`[DEV] Código de recuperación para ${correo}: ${codigo}`);
-    }
+    await enviarCodigoRecuperacion(correo, codigo);
   }
   res.json({ mensaje });
 });
 
 // POST /api/auth/restablecer  body: { correo, codigo, contrasena }
-router.post("/restablecer", async (req, res) => {
+router.post("/restablecer", limitarIntentos(10), async (req, res) => {
   const correo = req.body.correo?.trim().toLowerCase();
   const codigo = String(req.body.codigo ?? "").trim();
   const contrasena = req.body.contrasena ?? "";

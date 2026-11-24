@@ -12,9 +12,14 @@ services:
         value: production
       - key: JWT_EXPIRA
         value: 7d
+      # Origen permitido para navegadores (dominio del frontend web). La app móvil no usa CORS.
       - key: CORS_ORIGIN
-        value: "*"
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: DATABASE_URL
         sync: false   # se pide al crear el servicio: la URL de PostgreSQL en la nube
+      - key: RESEND_API_KEY
+        sync: false   # clave de Resend para enviar el código de recuperación
+      - key: MAIL_FROM
+        sync: false   # remitente verificado en Resend, por ejemplo "VidaEnRed <no-reply@tudominio.com>"
