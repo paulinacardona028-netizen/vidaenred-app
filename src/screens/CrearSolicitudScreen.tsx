@@ -20,17 +20,18 @@ export function CrearSolicitudScreen({ navigation }: Props) {
   const { donante, crearSolicitud } = useApp();
   const [entidades, setEntidades] = useState<Entidad[]>([]);
   const [entidadId, setEntidadId] = useState<string | null>(null);
+  const [hospitalTexto, setHospitalTexto] = useState("");
   const [tipoSangre, setTipoSangre] = useState<TipoSangre>(donante?.tipoSangre ?? "O+");
   const [urgencia, setUrgencia] = useState<NivelUrgencia>("Alta");
   const [pacienteNombre, setPacienteNombre] = useState("");
   const [contactoTelefono, setContactoTelefono] = useState("");
   const [publicando, setPublicando] = useState(false);
 
-  // Solo se ofrecen entidades aliadas de la ciudad del solicitante
+  // Se ofrecen las entidades de la ciudad del solicitante, aliadas o no
   useEffect(() => {
     if (!donante?.ciudad) return;
     api
-      .listarEntidades({ ciudad: donante.ciudad })
+      .listarEntidades({ ciudad: donante.ciudad, incluirNoAliadas: true })
       .then(setEntidades)
       .catch(() => setEntidades([]));
   }, [donante?.ciudad]);
@@ -49,8 +50,9 @@ export function CrearSolicitudScreen({ navigation }: Props) {
   }
 
   async function handlePublicar() {
-    if (!entidadId) {
-      Alert.alert("Falta información", "Selecciona el hospital o banco de sangre.");
+    const hospital = hospitalTexto.trim();
+    if (!entidadId && !hospital) {
+      Alert.alert("Falta información", "Selecciona el hospital o banco de sangre, o escribe su nombre.");
       return;
     }
     setPublicando(true);
@@ -58,12 +60,14 @@ export function CrearSolicitudScreen({ navigation }: Props) {
       await crearSolicitud({
         tipoSangre,
         urgencia,
-        entidadId,
+        entidadId: entidadId ?? undefined,
+        hospital: entidadId ? undefined : hospital,
         pacienteNombre: pacienteNombre.trim() || undefined,
         contactoTelefono: contactoTelefono.trim() || undefined,
       });
       Alert.alert("Solicitud publicada", "Avisamos a los donantes compatibles cercanos.");
       setEntidadId(null);
+      setHospitalTexto("");
       setPacienteNombre("");
       setContactoTelefono("");
       setUrgencia("Alta");
@@ -90,8 +94,18 @@ export function CrearSolicitudScreen({ navigation }: Props) {
         ))}
       </View>
       {entidades.length === 0 && (
-        <Text style={styles.ayuda}>Todavía no hay entidades aliadas en {donante?.ciudad}.</Text>
+        <Text style={styles.ayuda}>No hay entidades registradas en {donante?.ciudad}. Escribe el nombre del hospital abajo.</Text>
       )}
+      <Text style={styles.label}>Otro hospital o banco de sangre (si no aparece arriba)</Text>
+      <TextInput
+        style={styles.input}
+        value={hospitalTexto}
+        onChangeText={(t) => {
+          setHospitalTexto(t);
+          if (t.trim()) setEntidadId(null);
+        }}
+        placeholder="Nombre de la institución"
+      />
 
       <Text style={styles.label}>Tipo de sangre requerido</Text>
       <View style={styles.fila}>

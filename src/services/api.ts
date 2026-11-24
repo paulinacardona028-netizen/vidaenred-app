@@ -89,7 +89,8 @@ export interface DatosRegistro {
 export interface DatosNuevaSolicitud {
   tipoSangre: TipoSangre;
   urgencia: NivelUrgencia;
-  entidadId: string;
+  entidadId?: string;
+  hospital?: string;
   pacienteNombre?: string;
   contactoTelefono?: string;
 }
