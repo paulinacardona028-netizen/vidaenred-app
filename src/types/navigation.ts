@@ -1,4 +1,6 @@
-// Stack raiz de la app: Login -> MainTabs, y pantallas que se abren encima de las pestañas
+
+import { NavigatorScreenParams } from "@react-navigation/native";
+
 export type RootStackParamList = {
   Login: undefined;
   RecuperarContrasena: undefined;
@@ -8,14 +10,17 @@ export type RootStackParamList = {
   Notificaciones: undefined;
 };
 
-// Pestanas principales (bottom tabs) que ve el usuario ya logueado
+// Pestañas principales
 export type MainTabParamList = {
-  InicioTab: undefined;
+  InicioTab: NavigatorScreenParams<HomeStackParamList> | undefined;
+  Solicitudes: undefined;
+  Entidades: undefined;
+  Avisos: undefined;
   CrearSolicitud: undefined;
   Perfil: undefined;
 };
 
-// Stack interno de la pestana "Inicio": la lista, el detalle y la confirmación
+// Stack interno de Inicio
 export type HomeStackParamList = {
   Inicio: undefined;
   DetalleSolicitud: { solicitudId: string };
