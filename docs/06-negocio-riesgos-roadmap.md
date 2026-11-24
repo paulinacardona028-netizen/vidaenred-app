@@ -51,7 +51,7 @@ VidaEnRed es un servicio social. La monetización propuesta **no cobra a los don
 - Validar los umbrales médicos.
 
 **Mediano plazo:**
-- Envío de correos para recuperar contraseña.
+- Plantillas de correo más completas y registro de envíos.
 - Notificaciones push en el teléfono.
 - Panel administrativo para entidades.
 - Reportar solicitudes sospechosas.

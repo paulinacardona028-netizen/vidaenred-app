@@ -28,7 +28,7 @@ npm run db:migrar             # crea o actualiza las tablas (no borra datos)
 npm run db:importar-entidades # carga el catálogo desde data/entidades.csv
 ```
 
-`data/entidades.csv` trae solo el encabezado. Se llena con hospitales, urgencias, bancos de sangre y clínicas reales.
+`data/entidades.csv` trae solo el encabezado: `nombre,tipo,ciudad,telefono,latitud,longitud,es_aliada,logo_url,prioridad`. Se llena con hospitales, urgencias, bancos de sangre y clínicas reales. La columna `logo_url` es opcional: si está vacía, la app muestra las iniciales de la entidad. Si se incluye, debe ser una URL https válida.
 
 ### 3. API
 
@@ -87,7 +87,9 @@ Pasos:
 | `DATABASE_URL` | backend | Sí | Conexión a PostgreSQL |
 | `JWT_SECRET` | backend | Sí | Clave para firmar tokens (mínimo 32 caracteres) |
 | `JWT_EXPIRA` | backend | No | Duración de la sesión (por defecto 7d) |
-| `CORS_ORIGIN` | backend | No | Origen permitido (por defecto `*`) |
+| `CORS_ORIGIN` | backend | No | Origen permitido para navegadores (por defecto `*`). La app móvil no usa CORS |
+| `RESEND_API_KEY` | backend | Para recuperación por correo | Clave de API de Resend |
+| `MAIL_FROM` | backend | Para recuperación por correo | Remitente verificado en Resend, por ejemplo `VidaEnRed <no-reply@tudominio.com>` |
 | `NODE_ENV` | backend | No | `production` en el despliegue |
 | `PORT` | backend | No | Puerto (por defecto 3000) |
 | `TEST_DATABASE_URL` | backend | Solo pruebas | Base desechable para pruebas |

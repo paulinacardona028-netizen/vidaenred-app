@@ -50,5 +50,6 @@ Errores: `400` datos inválidos, `401` sin sesión o credenciales incorrectas, `
 Ver la sección de despliegue del `README.md` de la raíz. Resumen:
 
 - `Dockerfile` en esta carpeta; el contenedor ejecuta `npm run start:produccion`, que aplica el esquema y luego inicia la API.
-- Variables obligatorias: `DATABASE_URL`, `JWT_SECRET`. Recomendadas: `NODE_ENV=production`, `CORS_ORIGIN`.
+- Variables obligatorias: `DATABASE_URL`, `JWT_SECRET` (mínimo 32 caracteres, no puede empezar por `cambia-`). Recomendadas: `NODE_ENV=production`, `CORS_ORIGIN`. Para correos de recuperación: `RESEND_API_KEY` y `MAIL_FROM`.
+- Seguridad: `/login` (20 intentos), `/recuperar` (5) y `/restablecer` (10) están limitados a esos intentos por IP cada 15 minutos.
 - Verificación: `GET /api/health` debe responder `{"ok":true}`.

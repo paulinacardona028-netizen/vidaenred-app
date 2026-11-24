@@ -43,7 +43,7 @@ Cuando una persona o un hospital necesita sangre con urgencia, el proceso suele 
 **No incluye (por ahora):**
 
 - Notificaciones push en el teléfono.
-- Envío de correos electrónicos (la recuperación de contraseña aún muestra el código en el servidor de desarrollo).
+- Envío del código de recuperación por correo (Resend). Sin `RESEND_API_KEY` y `MAIL_FROM`, el código solo se muestra en la consola en desarrollo.
 - Pagos o cobros.
 - Verificación de identidad de los donantes.
 - Panel administrativo para gestionar entidades.

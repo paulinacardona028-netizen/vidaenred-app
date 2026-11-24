@@ -7,7 +7,9 @@ Usan el corredor de pruebas integrado de Node.js (sin dependencias extra).
 | Archivo | Tipo | Qué prueba | Cantidad |
 |---|---|---|---|
 | `backend/test/reglas.test.js` | Unitarias | Compatibilidad de sangre, validaciones, formulario de elegibilidad, utilidades | 33 |
-| `backend/test/api.test.js` | Integración | Endpoints reales contra PostgreSQL: autenticación, roles, solicitudes, cierre, entidades, errores | 25 |
+| `backend/test/correo.test.js` | Unitarias | Envío del código de recuperación (Resend), sin llamar al servicio real | 4 |
+| `backend/test/entidades.test.js` | Unitarias | Campo `logoUrl` de las entidades | 2 |
+| `backend/test/api.test.js` | Integración | Endpoints reales contra PostgreSQL: autenticación, roles, solicitudes, cierre, entidades (incluido el límite de 3), errores | 27 |
 
 Ejecución:
 
@@ -25,7 +27,7 @@ cd backend
 npm run test:cobertura
 ```
 
-Resultado actual: **93 % de las líneas** y **77 % de las ramas**. El requisito mínimo del proyecto es 60 %.
+Resultado actual: **93 % de las líneas** (66 pruebas en total). El requisito mínimo del proyecto es 60 %. El script crea la carpeta `coverage/` si no existe, así que funciona en un clon limpio.
 
 El reporte en formato `lcov` se genera en `backend/coverage/lcov.info` y es el que lee SonarCloud.
 
