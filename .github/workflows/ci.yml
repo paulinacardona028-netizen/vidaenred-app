@@ -1,15 +1,23 @@
-# Integración continua: pruebas del backend, verificación de la app y análisis de calidad.
+# Integración continua: pruebas del backend,
+# verificación de la app y análisis de calidad.
+
 name: CI
 
 on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   backend:
     name: Backend (pruebas y cobertura)
     runs-on: ubuntu-latest
+
     services:
       postgres:
         image: postgres:16
@@ -23,37 +31,51 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+
     env:
       TEST_DATABASE_URL: postgres://vida:vida@localhost:5432/vidaenred_test
+
     defaults:
       run:
         working-directory: backend
+
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: backend/package-lock.json
-      - run: npm ci
+
+      - name: Instalar dependencias
+        run: npm ci --ignore-scripts
+
       - name: Pruebas con cobertura
         run: npm run test:cobertura
+
       - name: Subir reporte de cobertura
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: cobertura-backend
           path: backend/coverage/lcov.info
+          if-no-files-found: error
 
   app:
     name: App móvil (verificación de tipos)
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+
+      - name: Instalar dependencias
+        run: npm ci --ignore-scripts
+
       - name: Compilar TypeScript en modo estricto
         run: npx tsc --noEmit
 
@@ -61,19 +83,20 @@ jobs:
     name: Análisis de calidad (SonarCloud)
     needs: [backend, app]
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+
+      - name: Descargar reporte de cobertura
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          node-version: 22
-      - name: Generar cobertura
-        working-directory: backend
-        run: |
-          npm ci
-          npm run test:cobertura || true
-      - uses: SonarSource/sonarcloud-github-action@383f7e52eae3ab0510c3cb0e7d9d150bbaeab838 # v3
+          name: cobertura-backend
+          path: backend/coverage
+
+      - name: Ejecutar análisis de SonarCloud
+        uses: SonarSource/sonarqube-scan-action@2f77a1ec69fb1d595b06f35ab27e97605bdef703 # v5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
